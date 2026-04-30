@@ -1,0 +1,121 @@
+Metadata-Version: 2.4
+Name: xrr-notebooks
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: arviz>=0.23.1
+Requires-Dist: awkward>=2.9.0
+Requires-Dist: blosc2>=4.0.0
+Requires-Dist: bluesky-tiled-plugins>=2.0.2
+Requires-Dist: corner>=2.2.3
+Requires-Dist: dask>=2026.1.2
+Requires-Dist: entrypoints>=0.4
+Requires-Dist: fastparquet>=2025.12.0
+Requires-Dist: h5py>=3.15.1
+Requires-Dist: holoviews>=1.22.1
+Requires-Dist: hvplot>=0.12.2
+Requires-Dist: ipyaggrid>=0.5.4
+Requires-Dist: ipywidgets>=8.1.8
+Requires-Dist: joypy>=0.2.6
+Requires-Dist: jupyterlab>=4.5.2
+Requires-Dist: lz4>=4.4.5
+Requires-Dist: matplotlib
+Requires-Dist: ndindex>=1.10.1
+Requires-Dist: notebook>=7.5.2
+Requires-Dist: notion-notebook
+Requires-Dist: numba>=0.63.1
+Requires-Dist: numpy
+Requires-Dist: ollama>=0.6.1
+Requires-Dist: openpyxl>=3.1.5
+Requires-Dist: pandas
+Requires-Dist: pyarrow>=23.0.0
+Requires-Dist: pyhyperscattering[bluesky,ui]
+Requires-Dist: pyref
+Requires-Dist: pyrefly>=0.38.2
+Requires-Dist: rich>=14.3.2
+Requires-Dist: ridgeplot>=0.5.0
+Requires-Dist: ruff
+Requires-Dist: salib>=1.5.2
+Requires-Dist: scienceplots>=2.1.1
+Requires-Dist: sparse>=0.18.0
+Requires-Dist: stamina>=25.2.0
+Requires-Dist: tiled>=0.2.4
+Requires-Dist: uncertainties>=3.2.3
+Requires-Dist: watchfiles>=1.1.1
+Requires-Dist: websockets>=16.0
+Requires-Dist: xarray>=2025.12.0
+Requires-Dist: zarr>=3.1.5
+Requires-Dist: zstandard>=0.25.0
+
+# XRR Notebooks
+
+Repository for X-ray Reflectivity (XRR) data analysis, fitting, and related research workflows.
+
+## Structure
+
+This repository follows a Cookiecutter Data Science-inspired structure, organized for multiple research subprojects:
+
+- **`data/`** - Data files organized by processing stage (raw/interim/processed)
+- **`notebooks/`** - Jupyter notebooks organized by subproject
+- **`src/`** - Reusable Python code and utilities
+- **`scripts/`** - Standalone executable scripts
+- **`reports/`** - Generated outputs (figures, tables, PDFs)
+- **`models/`** - Saved model artifacts and checkpoints
+- **`config/`** - Configuration files
+- **`references/`** - External reference materials
+- **`docs/`** - Documentation
+
+## Subprojects
+
+- **data_collection**: Beamtime data collection and processing
+- **fitting**: X-ray reflectivity (XRR) fitting and analysis
+- **manuscript**: Manuscript preparation and figure generation
+- **optical_models**: Optical constants modeling and NEXAFS analysis
+- **dft**: Density functional theory (DFT) analysis
+- **giwaxs**: Grazing-incidence wide-angle X-ray scattering analysis
+- **photoresist**: Photoresist-related analysis
+- **training_data**: Training data generation for machine learning
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.12+
+- uv (package manager)
+
+### Installation
+
+```bash
+# Install dependencies
+uv sync
+
+# Activate virtual environment
+source .venv/bin/activate
+```
+
+### Directory Navigation
+
+- **Notebooks**: Organized by subproject in `notebooks/[subproject]/`
+- **Data**: Raw data in `data/raw/`, processed in `data/processed/`
+- **Figures**: All figures centralized in `reports/figures/[subproject]/`
+- **Code**: Reusable modules in `src/`, scripts in `scripts/`
+
+## Documentation
+
+- **Architecture**: See `docs/architecture.md` for detailed structure documentation
+- **Notebook Index**: See `docs/notebooks_index.md` for catalog of all notebooks
+- **Migration Map**: See `docs/migration_map.md` for file reorganization details
+
+## Development
+
+This repository uses:
+- **ruff** for linting and code formatting
+- **uv** for dependency management
+- **Python 3.12+** with type hints
+
+Code style follows PEP 8 with adaptations for scientific computing (e.g., uppercase variables for physical constants).
+
+## Project History
+
+This repository was reorganized in January 2026 from a flat structure to the current multi-project organization. All file moves preserved Git history using `git mv`.
