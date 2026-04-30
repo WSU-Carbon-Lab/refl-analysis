@@ -1,13 +1,3 @@
-.coments
-
-# Large pickle files (>2GB GitHub LFS limit or >100MB without LFS)
-models/fitting_results/fitting_results_fixed_2.pkl
-models/fitting_results/fitting_results_free_model_2.pkl
-models/fitting_results/fitting_results_profile_3.pkl
-
-# Large HDF5 and chain files (>100MB GitHub limit)
-models/checkpoints/dft_internal.h5
-
 # Temporary files
 __pycache__/
 *.pyc
@@ -35,12 +25,21 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Project datasets
-data/
+# Project datasets scaffold
+@data/**
+!@data/**/
+!@data/**/README.md
+!@data/**/.gitkeep
 
 # Local agent state
 .cursor/hooks/state/
 
-# Large local model/checkpoint artifacts (keep local, never track)
-models/xrr/
-models/checkpoints/
+# Local model scaffold
+@models/**
+!@models/**/
+!@models/**/README.md
+!@models/**/.gitkeep
+
+# Legacy paths (do not use; replaced by @data/@models)
+data/**
+models/**

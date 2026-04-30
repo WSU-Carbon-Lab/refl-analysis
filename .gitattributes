@@ -1,0 +1,6 @@
+*.pkl -filter -diff -merge -text
+*.parquet -filter -diff -merge -text
+*.h5 -filter -diff -merge -text
+*.fits -filter -diff -merge -text
+@data/** -filter -diff -merge -text
+@models/** -filter -diff -merge -text
