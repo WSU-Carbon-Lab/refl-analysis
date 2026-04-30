@@ -7,7 +7,7 @@ tags:
 library_name: none
 ---
 
-# @models/xrr/znpc
+# models/xrr/znpc
 
 Local mirror path for:
 
@@ -15,7 +15,5 @@ Local mirror path for:
 
 Use:
 
-- `make hf-pull-target TARGET=@models/xrr/znpc`
-- `make hf-push-target TARGET=@models/xrr/znpc`
-
-This directory is scaffold-only in GitHub. Model artifacts are stored on Hugging Face.
+- `make hf-pull-target TARGET=models/xrr/znpc`
+- `make hf-push-target TARGET=models/xrr/znpc`

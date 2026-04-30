@@ -7,7 +7,7 @@ tags:
 pretty_name: XRR Photoresist
 ---
 
-# @data/xrr/photoresist
+# data/xrr/photoresist
 
 Local mirror path for:
 
@@ -15,7 +15,5 @@ Local mirror path for:
 
 Use:
 
-- `make hf-pull-target TARGET=@data/xrr/photoresist`
-- `make hf-push-target TARGET=@data/xrr/photoresist`
-
-This directory is scaffold-only in GitHub. Data files are stored on Hugging Face.
+- `make hf-pull-target TARGET=data/xrr/photoresist`
+- `make hf-push-target TARGET=data/xrr/photoresist`

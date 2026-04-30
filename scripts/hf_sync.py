@@ -8,6 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 import tomllib
+from huggingface_hub import HfApi
 
 
 VALID_REPO_TYPES = {"dataset", "model", "space"}
@@ -183,18 +184,22 @@ def command_push(mappings: list[Mapping], dry_run: bool) -> None:
 
 
 def command_check_remote(mappings: list[Mapping], dry_run: bool) -> None:
+    api = HfApi()
     for mapping in mappings:
-        cmd = [
-            "hf",
-            "repo",
-            "files",
-            mapping.repo_id,
-            "--repo-type",
-            mapping.repo_type,
-            "--revision",
-            mapping.revision,
-        ]
-        run(cmd, dry_run)
+        if dry_run:
+            print(
+                "DRY_RUN: list_repo_files "
+                f"repo_id={mapping.repo_id} "
+                f"repo_type={mapping.repo_type} "
+                f"revision={mapping.revision}"
+            )
+            continue
+        files = api.list_repo_files(
+            repo_id=mapping.repo_id,
+            repo_type=mapping.repo_type,
+            revision=mapping.revision,
+        )
+        print(f"{mapping.repo_id}: {len(files)} files found on {mapping.revision}")
 
 
 def parser() -> argparse.ArgumentParser:
