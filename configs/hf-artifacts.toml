@@ -1,0 +1,34 @@
+[hub]
+namespace = "carbon-lab"
+
+[[data]]
+experiment_type = "xrr"
+material = "znpc"
+local_path = "@data/xrr/znpc"
+repo_id = "carbon-lab/xrr-znpc"
+repo_type = "dataset"
+revision = "main"
+
+[[data]]
+experiment_type = "xrr"
+material = "photoresist"
+local_path = "@data/xrr/photoresist"
+repo_id = "carbon-lab/xrr-photoresist"
+repo_type = "dataset"
+revision = "main"
+
+[[models]]
+model_type = "xrr"
+material = "znpc"
+local_path = "@models/xrr/znpc"
+repo_id = "carbon-lab/xrr-znpc"
+repo_type = "model"
+revision = "main"
+
+[[models]]
+model_type = "optical"
+material = "znpc"
+local_path = "@models/optical/znpc"
+repo_id = "carbon-lab/optical-znpc"
+repo_type = "model"
+revision = "main"

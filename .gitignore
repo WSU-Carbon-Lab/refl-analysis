@@ -35,12 +35,17 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Project datasets
-data/
+# Project datasets scaffold
+@data/**
+!@data/**/
+!@data/**/README.md
+!@data/**/.gitkeep
 
 # Local agent state
 .cursor/hooks/state/
 
-# Large local model/checkpoint artifacts (keep local, never track)
-models/xrr/
-models/checkpoints/
+# Local model scaffold
+@models/**
+!@models/**/
+!@models/**/README.md
+!@models/**/.gitkeep
