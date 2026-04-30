@@ -11,6 +11,8 @@ import tomllib
 
 
 VALID_REPO_TYPES = {"dataset", "model", "space"}
+DATA_ROOT = "@data"
+MODELS_ROOT = "@models"
 
 
 @dataclass(frozen=True)
@@ -74,11 +76,11 @@ def validate_mapping(mapping: Mapping) -> list[str]:
 
     expected_local = (local_parts[-3], local_parts[-2], local_parts[-1])
     if mapping.kind == "data":
-        if expected_local[0] != "data":
-            failures.append(f"{mapping.local_path}: data mapping must live under data/")
+        if expected_local[0] != DATA_ROOT:
+            failures.append(f"{mapping.local_path}: data mapping must live under {DATA_ROOT}/")
     if mapping.kind == "models":
-        if expected_local[0] != "models":
-            failures.append(f"{mapping.local_path}: models mapping must live under models/")
+        if expected_local[0] != MODELS_ROOT:
+            failures.append(f"{mapping.local_path}: models mapping must live under {MODELS_ROOT}/")
 
     if expected_local[1] != mapping.group:
         failures.append(

@@ -1,13 +1,3 @@
-.coments
-
-# Large pickle files (>2GB GitHub LFS limit or >100MB without LFS)
-models/fitting_results/fitting_results_fixed_2.pkl
-models/fitting_results/fitting_results_free_model_2.pkl
-models/fitting_results/fitting_results_profile_3.pkl
-
-# Large HDF5 and chain files (>100MB GitHub limit)
-models/checkpoints/dft_internal.h5
-
 # Temporary files
 __pycache__/
 *.pyc
