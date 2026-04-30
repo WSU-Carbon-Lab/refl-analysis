@@ -1,16 +1,20 @@
 import os
+import tomllib
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 import polars as pl
 import pyref.fitting as fit
+from huggingface_hub import snapshot_download
 
 os.environ["POLARS_VERBOSE"] = "0"
 os.environ["RUST_LOG"] = "error"
 
 project_root = Path(__file__).parent.parent.parent.parent.resolve()
+hf_artifacts_config_path = project_root / "configs" / "hf-artifacts.toml"
 
-data_root = project_root / "data"
+data_root = project_root / "@data"
 data_raw = data_root / "raw"
 data_interim = data_root / "interim"
 data_processed = data_root / "processed"
@@ -26,7 +30,7 @@ notebooks_manuscript = notebooks_root / "manuscript"
 notebooks_optical_models = notebooks_root / "optical_models"
 notebooks_photoresist = notebooks_root / "photoresist"
 
-models_root = project_root / "models"
+models_root = project_root / "@models"
 models_fitting_results = models_root / "fitting_results"
 models_checkpoints = models_root / "checkpoints"
 models_optical = models_root / "optical"
@@ -38,10 +42,84 @@ docs_root = project_root / "docs"
 src_root = project_root / "src"
 
 
-def read_xrr(
+def _load_hf_artifact_config(config_path: Path = hf_artifacts_config_path) -> dict:
+    with config_path.open("rb") as handle:
+        return tomllib.load(handle)
+
+
+def resolve_special_path(value: str | Path) -> Path:
+    path = Path(value)
+    path_str = path.as_posix()
+    if path_str.startswith("@data/") or path_str == "@data":
+        suffix = path_str.removeprefix("@data").lstrip("/")
+        return (data_root / suffix).resolve()
+    if path_str.startswith("@models/") or path_str == "@models":
+        suffix = path_str.removeprefix("@models").lstrip("/")
+        return (models_root / suffix).resolve()
+    if path.is_absolute():
+        return path.resolve()
+    return (project_root / path).resolve()
+
+
+def resolve_hf_mapping(
+    kind: Literal["data", "models"],
+    group: str,
+    material: str,
+    config_path: Path = hf_artifacts_config_path,
+) -> dict[str, str]:
+    config = _load_hf_artifact_config(config_path)
+    rows = config.get(kind, [])
+    group_key = "experiment_type" if kind == "data" else "model_type"
+    for row in rows:
+        if row[group_key] == group and row["material"] == material:
+            return {
+                "repo_id": row["repo_id"],
+                "repo_type": row["repo_type"],
+                "revision": row.get("revision", "main"),
+                "local_path": str(resolve_special_path(row["local_path"])),
+            }
+    raise ValueError(
+        "No Hugging Face mapping found for "
+        f"kind={kind}, group={group}, material={material}"
+    )
+
+
+def resolve_artifact_directory(
+    kind: Literal["data", "models"],
+    group: str,
+    material: str,
+    source: Literal["local", "hub", "auto"] = "auto",
+    config_path: Path = hf_artifacts_config_path,
+) -> Path:
+    mapping = resolve_hf_mapping(
+        kind=kind, group=group, material=material, config_path=config_path
+    )
+    local_path = Path(mapping["local_path"])
+    if source == "local":
+        if not local_path.exists():
+            raise FileNotFoundError(f"Local artifact directory not found: {local_path}")
+        return local_path
+    if source == "hub" or (source == "auto" and not local_path.exists()):
+        local_path.mkdir(parents=True, exist_ok=True)
+        snapshot_download(
+            repo_id=mapping["repo_id"],
+            repo_type=mapping["repo_type"],
+            revision=mapping["revision"],
+            local_dir=str(local_path),
+            local_dir_use_symlinks=False,
+        )
+    if not local_path.exists():
+        raise FileNotFoundError(
+            f"Artifact directory not found after resolution: {local_path}"
+        )
+    return local_path
+
+
+def read_xrr(  # noqa: PLR0912, PLR0915
     filename: str | Path | None = None,
     material: str | None = None,
     data_dir: Path | None = None,
+    source: Literal["local", "hub", "auto"] = "auto",
 ) -> dict[str, fit.XrayReflectDataset]:
     """
     Load reflectivity dataset from a parquet file.
@@ -70,7 +148,12 @@ def read_xrr(
     """
     if material is not None:
         if data_dir is None:
-            data_dir = data_root / "xrr" / material
+            data_dir = resolve_artifact_directory(
+                kind="data",
+                group="xrr",
+                material=material,
+                source=source,
+            )
         if filename is None:
             filename = "refl"
         filename_path = Path(filename)
@@ -111,8 +194,7 @@ def read_xrr(
             if col in columns:
                 return col
         raise ValueError(
-            f"Could not find {column_type} column. "
-            f"Available columns: {columns}"
+            f"Could not find {column_type} column. Available columns: {columns}"
         )
 
     energy_col = find_column(
@@ -120,9 +202,7 @@ def read_xrr(
     )
     q_col = find_column(["Q", "Q [Å⁻¹]", "q", "Q [A^-1]"], "Q")
     r_col = find_column(["R", "r", "r [a. u.]", "reflectivity"], "R")
-    dr_col = find_column(
-        ["dR", "dr", "δr [a. u.]", "dR [a. u.]", "error"], "dR"
-    )
+    dr_col = find_column(["dR", "dr", "δr [a. u.]", "dR [a. u.]", "error"], "dR")
 
     data_reconstructed: dict[str, fit.XrayReflectDataset] = {}
 
@@ -146,6 +226,7 @@ def read_ooc(
     filename: str | Path | None = None,
     material: str | None = None,
     data_dir: Path | None = None,
+    source: Literal["local", "hub", "auto"] = "auto",
 ) -> pd.DataFrame:
     """
     Load optical constants from a CSV file.
@@ -178,7 +259,13 @@ def read_ooc(
     if filename is None:
         if material is None:
             raise ValueError("Either filename or material must be provided")
-        filename = data_dir / material / "dft.csv"
+        material_dir = resolve_artifact_directory(
+            kind="models",
+            group="optical",
+            material=material,
+            source=source,
+        )
+        filename = material_dir / "dft.csv"
     elif material is not None:
         filename = data_dir / material / filename
     else:
@@ -196,9 +283,7 @@ def read_ooc(
     required_columns = {"energy", "n_xx", "n_zz", "n_ixx", "n_izz"}
     if not required_columns.issubset(ooc.columns):
         missing = required_columns - set(ooc.columns)
-        raise ValueError(
-            f"Optical constants file missing required columns: {missing}"
-        )
+        raise ValueError(f"Optical constants file missing required columns: {missing}")
 
     return ooc
 
@@ -246,8 +331,6 @@ def read_fit(
         result = pickle.load(f)
 
     if not isinstance(result, fit.GlobalObjective):
-        raise TypeError(
-            f"Loaded object is not a GlobalObjective, got {type(result)}"
-        )
+        raise TypeError(f"Loaded object is not a GlobalObjective, got {type(result)}")
 
     return result

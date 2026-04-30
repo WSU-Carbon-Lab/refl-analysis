@@ -7,7 +7,7 @@ tags:
 pretty_name: XRR ZnPC
 ---
 
-# @data/xrr/znpc
+# data/xrr/znpc
 
 Local mirror path for:
 
@@ -15,7 +15,5 @@ Local mirror path for:
 
 Use:
 
-- `make hf-pull-target TARGET=@data/xrr/znpc`
-- `make hf-push-target TARGET=@data/xrr/znpc`
-
-This directory is scaffold-only in GitHub. Data files are stored on Hugging Face.
+- `make hf-pull-target TARGET=data/xrr/znpc`
+- `make hf-push-target TARGET=data/xrr/znpc`
