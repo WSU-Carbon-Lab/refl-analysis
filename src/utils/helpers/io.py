@@ -6,7 +6,7 @@ from typing import Literal
 import pandas as pd
 import polars as pl
 import pyref.fitting as fit
-from huggingface_hub import snapshot_download
+from huggingface_hub import hf_hub_download, snapshot_download
 
 os.environ["POLARS_VERBOSE"] = "0"
 os.environ["RUST_LOG"] = "error"
@@ -113,6 +113,66 @@ def resolve_artifact_directory(
             f"Artifact directory not found after resolution: {local_path}"
         )
     return local_path
+
+
+def resolve_artifact_file(  # noqa: PLR0913
+    *,
+    kind: Literal["data", "models"],
+    group: str,
+    material: str,
+    filename: str | Path,
+    source: Literal["local", "hub", "auto"] = "auto",
+    config_path: Path = hf_artifacts_config_path,
+) -> Path:
+    """
+    Resolve a single file inside a mapped Hugging Face artifact repository.
+
+    Parameters
+    ----------
+    kind : {"data", "models"}
+        Artifact category from ``configs/hf-artifacts.toml``.
+    group : str
+        Experiment or model type (for example ``"xrr"`` or ``"optical"``).
+    material : str
+        Material slug (for example ``"znpc"``).
+    filename : str or Path
+        Repo-relative path (for example ``"dft.csv"`` or ``"dft/best.pkl"``).
+    source : {"local", "hub", "auto"}, optional
+        ``local`` requires an on-disk copy under the mapped ``@data``/``@models``
+        tree. ``hub`` always fetches via ``huggingface_hub.hf_hub_download``.
+        ``auto`` uses local files when present, otherwise downloads from the Hub.
+    config_path : Path, optional
+        Path to the HF artifacts TOML config.
+
+    Returns
+    -------
+    Path
+        Absolute path to the resolved file.
+    """
+    mapping = resolve_hf_mapping(
+        kind=kind, group=group, material=material, config_path=config_path
+    )
+    local_root = Path(mapping["local_path"])
+    rel = Path(filename).as_posix().lstrip("/")
+    local_file = (local_root / rel).resolve()
+
+    if source == "local":
+        if not local_file.is_file():
+            raise FileNotFoundError(f"Local artifact file not found: {local_file}")
+        return local_file
+
+    if source == "auto" and local_file.is_file():
+        return local_file
+
+    return Path(
+        hf_hub_download(
+            repo_id=mapping["repo_id"],
+            filename=rel,
+            repo_type=mapping["repo_type"],
+            revision=mapping["revision"],
+            local_dir=str(local_root),
+        )
+    )
 
 
 def read_xrr(  # noqa: PLR0912, PLR0915
@@ -234,12 +294,15 @@ def read_ooc(
     Parameters
     ----------
     filename : str or Path, optional
-        Input filename. If None and material is provided,
-        constructs path as models_optical / material / "dft.csv"
+        Repo-relative CSV name. If None and material is provided, uses ``dft.csv``.
     material : str, optional
-        Material name (e.g., "znpc"). If provided, constructs default path.
+        Material name (e.g., ``"znpc"``). Resolves ``carbon-lab/optical-<material>``
+        via ``configs/hf-artifacts.toml`` and ``hf_hub_download``.
     data_dir : Path, optional
-        Directory to search for optical constants. If None, uses models_optical
+        Local directory when ``material`` is not provided. Defaults to
+        ``models_optical``.
+    source : {"local", "hub", "auto"}, optional
+        Hub retrieval policy passed to :func:`resolve_artifact_file`.
 
     Returns
     -------
@@ -253,32 +316,29 @@ def read_ooc(
     >>> ooc = read_ooc("dft_beta.csv", material="znpc")
     >>> ooc = read_ooc("custom_ooc.csv", data_dir=Path("/custom/path"))
     """
-    if data_dir is None:
-        data_dir = models_optical
-
-    if filename is None:
-        if material is None:
-            raise ValueError("Either filename or material must be provided")
-        material_dir = resolve_artifact_directory(
+    if material is not None:
+        if filename is None:
+            rel_name = "dft.csv"
+        else:
+            rel_name = Path(filename).as_posix().lstrip("/")
+        path = resolve_artifact_file(
             kind="models",
             group="optical",
             material=material,
+            filename=rel_name,
             source=source,
         )
-        filename = material_dir / "dft.csv"
-    elif material is not None:
-        filename = data_dir / material / filename
     else:
-        filename = Path(filename)
-        if not filename.is_absolute():
-            filename = data_dir / filename
+        if filename is None:
+            raise ValueError("Either filename or material must be provided")
+        base = models_optical if data_dir is None else data_dir
+        path = Path(filename)
+        if not path.is_absolute():
+            path = base / path
+        if not path.is_file():
+            raise FileNotFoundError(f"Optical constants file not found: {path}")
 
-    filename = Path(filename)
-
-    if not filename.exists():
-        raise FileNotFoundError(f"Optical constants file not found: {filename}")
-
-    ooc = pd.read_csv(filename)
+    ooc = pd.read_csv(path)
 
     required_columns = {"energy", "n_xx", "n_zz", "n_ixx", "n_izz"}
     if not required_columns.issubset(ooc.columns):
@@ -288,19 +348,34 @@ def read_ooc(
     return ooc
 
 
-def read_fit(
-    filename: str | Path | None = None,
+def read_fit(  # noqa: PLR0913
+    filename: str | Path,
+    material: str | None = None,
+    model_type: str = "xrr",
+    subdir: str | None = None,
     data_dir: Path | None = None,
+    source: Literal["local", "hub", "auto"] = "auto",
 ) -> fit.GlobalObjective:
     """
     Load a GlobalObjective from a pickle file.
 
     Parameters
     ----------
-    filename : str or Path, optional
-        Input filename. If None, raises ValueError
+    filename : str or Path
+        Pickle filename or repo-relative path (for example ``"dft/best.pkl"``).
+    material : str, optional
+        Material slug (for example ``"znpc"``). When set, resolves the mapped
+        Hugging Face model repo via :func:`resolve_artifact_file`.
+    model_type : str, optional
+        Model group from ``configs/hf-artifacts.toml`` (default ``"xrr"``).
+    subdir : str, optional
+        Prepended to ``filename`` when it has no directory component
+        (for example ``subdir="dft"`` with ``filename="best.pkl"``).
     data_dir : Path, optional
-        Directory to search for fitting results. If None, uses models_fitting_results
+        Local directory when ``material`` is not provided. Defaults to
+        ``models_fitting_results``.
+    source : {"local", "hub", "auto"}, optional
+        Hub retrieval policy passed to :func:`resolve_artifact_file`.
 
     Returns
     -------
@@ -309,26 +384,32 @@ def read_fit(
 
     Examples
     --------
-    >>> obj = read_fit("dft_en_offset_best.pkl")
+    >>> obj = read_fit("dft/dft_en_offset_best.pkl", material="znpc")
     >>> obj = read_fit("my_fit.pkl", data_dir=Path("/custom/path"))
     """
-    if filename is None:
-        raise ValueError("filename must be provided")
-
-    if data_dir is None:
-        data_dir = models_fitting_results
-
-    filename = Path(filename)
-    if not filename.is_absolute():
-        filename = data_dir / filename
-
-    if not filename.exists():
-        raise FileNotFoundError(f"Fitting results file not found: {filename}")
-
     import pickle
 
-    with filename.open("rb") as f:
-        result = pickle.load(f)
+    path = Path(filename)
+    if material is not None:
+        rel = path.as_posix().lstrip("/")
+        if subdir is not None and "/" not in rel:
+            rel = f"{subdir.strip('/')}/{rel}"
+        path = resolve_artifact_file(
+            kind="models",
+            group=model_type,
+            material=material,
+            filename=rel,
+            source=source,
+        )
+    else:
+        base = models_fitting_results if data_dir is None else data_dir
+        if not path.is_absolute():
+            path = base / path
+        if not path.is_file():
+            raise FileNotFoundError(f"Fitting results file not found: {path}")
+
+    with path.open("rb") as handle:
+        result = pickle.load(handle)
 
     if not isinstance(result, fit.GlobalObjective):
         raise TypeError(f"Loaded object is not a GlobalObjective, got {type(result)}")
