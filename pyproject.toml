@@ -15,6 +15,7 @@ dependencies = [
     "bluesky-tiled-plugins>=2.0.2",
     "corner>=2.2.3",
     "dask>=2026.1.2",
+    "dynesty>=3.0.0",
     "entrypoints>=0.4",
     "fastparquet>=2025.12.0",
     "h5py>=3.15.1",
@@ -39,6 +40,7 @@ dependencies = [
     "pyhyperscattering[bluesky,ui]",
     "pyref",
     "pyrefly>=0.38.2",
+    "refloxide",
     "rich>=14.3.2",
     "ridgeplot>=0.5.0",
     "ruff",
@@ -86,8 +88,9 @@ skip-magic-trailing-comma = false
 
 [tool.uv.sources]
 pyhyperscattering = { git = "https://github.com/usnistgov/PyHyperScattering.git" }
-pyref = { git = "https://github.com/WSU-Carbon-Lab/pyref.git", rev = "beam-preview-three-panel" }
+pyref = { path = "../pyref" }
 notion-notebook = { git = "https://github.com/HarlanHeilman/notion-notebook.git" }
+refloxide = { path = "../refloxide" }
 
 [tool.ruff.lint.per-file-ignores]
 "**/*.ipynb" = [

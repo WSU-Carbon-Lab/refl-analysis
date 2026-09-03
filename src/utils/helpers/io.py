@@ -192,7 +192,12 @@ def read_xrr(  # noqa: PLR0912, PLR0915
         Material name (e.g., "znpc"). If None, uses data_processed / "fitting"
     data_dir : Path, optional
         Directory to search for data. If None and material is provided,
-        uses data_root / "xrr" / material
+        resolves the mapped ``@data/xrr/<material>`` path from
+        ``configs/hf-artifacts.toml``.
+    source : {"local", "hub", "auto"}, optional
+        Hub retrieval policy when ``material`` is set and ``data_dir`` is None.
+        Uses :func:`resolve_artifact_file` so only the requested parquet is
+        fetched from the Hub, not the full repository snapshot.
 
     Returns
     -------
@@ -207,20 +212,24 @@ def read_xrr(  # noqa: PLR0912, PLR0915
     >>> data = read_xrr("my_data.parquet", data_dir=Path("/custom/path"))
     """
     if material is not None:
-        if data_dir is None:
-            data_dir = resolve_artifact_directory(
-                kind="data",
-                group="xrr",
-                material=material,
-                source=source,
-            )
         if filename is None:
             filename = "refl"
         filename_path = Path(filename)
-        if filename_path.suffix != ".parquet":
-            filename = data_dir / f"{filename_path}.parquet"
+        rel_name = (
+            filename_path.as_posix()
+            if filename_path.suffix == ".parquet"
+            else f"{filename_path.as_posix()}.parquet"
+        )
+        if data_dir is None:
+            filename = resolve_artifact_file(
+                kind="data",
+                group="xrr",
+                material=material,
+                filename=rel_name,
+                source=source,
+            )
         else:
-            filename = data_dir / filename_path
+            filename = data_dir / rel_name
     else:
         if data_dir is None:
             data_dir = data_processed / "fitting"
@@ -411,7 +420,7 @@ def read_fit(  # noqa: PLR0913
     with path.open("rb") as handle:
         result = pickle.load(handle)
 
-    if not isinstance(result, fit.GlobalObjective):
+    if not isinstance(result, fit.GlobalObjective | fit.AnisotropyObjective):
         raise TypeError(f"Loaded object is not a GlobalObjective, got {type(result)}")
 
     return result

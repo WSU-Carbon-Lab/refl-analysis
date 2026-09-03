@@ -4,7 +4,16 @@ src/data/__init__.py
 src/data/nexafs_directory.py
 src/data/xray_compounds.py
 src/utils/__init__.py
+src/utils/field_profile.py
+src/utils/graded_figures.py
+src/utils/graded_objective.py
+src/utils/models.py
+src/utils/objective_energy.py
 src/utils/profile_slab.py
+src/utils/pyref_patch.py
+src/utils/refloxide_fitting.py
+src/utils/refloxide_profile.py
+src/utils/refloxide_view.py
 src/utils/slab_builders.py
 src/utils/helpers/__init__.py
 src/utils/helpers/fitting_helper.py

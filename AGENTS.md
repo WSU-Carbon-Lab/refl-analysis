@@ -7,14 +7,14 @@ Based on your React/TypeScript AGENT.md file, here's a comprehensive Python/Jupy
 
 # Python Data Science Best Practices for X-ray Analysis
 
-**Version 1.0.0**  
-X-ray Data Science Team - Washington State University   
+**Version 1.0.0**
+X-ray Data Science Team - Washington State University
 January 2026
 
-> **Note:**  
-> This document is designed for AI agents and LLMs to follow when maintaining,  
-> generating, or refactoring Python data science code for X-ray reflectivity (XRR),  
-> scattering, diffraction, and spectroscopy analysis. Humans may also find it useful,  
+> **Note:**
+> This document is designed for AI agents and LLMs to follow when maintaining,
+> generating, or refactoring Python data science code for X-ray reflectivity (XRR),
+> scattering, diffraction, and spectroscopy analysis. Humans may also find it useful,
 > but guidance here is optimized for automation and consistency by AI-assisted workflows.
 
 ---
@@ -224,8 +224,8 @@ np.save('reflectivity.npy', data)  # Fast
 loaded = np.load('reflectivity.npy')  # Fast
 
 # NPZ: compressed multiple arrays
-np.savez_compressed('scan_data.npz', 
-                     q=q_values, 
+np.savez_compressed('scan_data.npz',
+                     q=q_values,
                      intensity=intensities,
                      errors=errors)
 data = np.load('scan_data.npz')
@@ -303,7 +303,7 @@ else:
     raw_data = load_raw_scans()
     processed = apply_corrections(raw_data)
     normalized = normalize_intensity(processed)
-    
+
     # Save to cache
     cache_file.parent.mkdir(exist_ok=True)
     with open(cache_file, 'wb') as f:
@@ -895,7 +895,7 @@ import duckdb
 
 conn = duckdb.connect()
 result = conn.execute("""
-    SELECT 
+    SELECT
         sample,
         AVG(intensity) as mean_intensity,
         MAX(q) as max_q
@@ -1360,7 +1360,7 @@ def downsample(x, y, num_points=2000):
     """Downsample to num_points while preserving shape."""
     if len(x) <= num_points:
         return x, y
-    
+
     indices = np.linspace(0, len(x) - 1, num_points, dtype=int)
     return x[indices], y[indices]
 
@@ -1507,7 +1507,7 @@ Load data once in early cells, analyze in later cells to avoid reloading on ever
 data = load_data()  # Loads data
 result_a = analyze_a(data)
 
-# Cell 6: Analysis B  
+# Cell 6: Analysis B
 data = load_data()  # Reloads same data!
 result_b = analyze_b(data)
 ```
@@ -1642,7 +1642,7 @@ def load_xrr_data(filepath):
     # Complex loading logic...
     pass
 
-# notebook_2.ipynb  
+# notebook_2.ipynb
 def load_xrr_data(filepath):
     # Same code duplicated
     pass
@@ -1997,7 +1997,7 @@ def calculate_reflectivity(
 ) -> NDArray[np.float64]:
     """
     Calculate X-ray reflectivity.
-    
+
     Parameters
     ----------
     q : array of float
@@ -2006,7 +2006,7 @@ def calculate_reflectivity(
         Scattering length density in Å⁻²
     thickness : float
         Layer thickness in Å
-        
+
     Returns
     -------
     reflectivity : array of float
@@ -2034,14 +2034,14 @@ def process_scan(q, intensity):
 ```python
 def process_scan(q: NDArray, intensity: NDArray) -> NDArray:
     """Process XRR scan data."""
-    
+
     # Validate inputs
     assert len(q) == len(intensity), "q and intensity must have same length"
     assert len(q) > 0, "Empty arrays not allowed"
     assert np.all(q > 0), "q values must be positive"
     assert np.all(intensity >= 0), "Intensity cannot be negative"
     assert intensity[0] != 0, "Cannot normalize by zero"
-    
+
     normalized = intensity / intensity[0]
     return normalized
 ```
@@ -2053,19 +2053,19 @@ def process_scan(q: NDArray, intensity: NDArray) -> NDArray:
     if len(q) != len(intensity):
         raise ValueError(f"Length mismatch: q has {len(q)} points, "
                         f"intensity has {len(intensity)} points")
-    
+
     if len(q) == 0:
         raise ValueError("Cannot process empty arrays")
-    
+
     if not np.all(q > 0):
         raise ValueError(f"q values must be positive, got min={q.min()}")
-    
+
     if not np.all(intensity >= 0):
         raise ValueError(f"Intensity cannot be negative, got min={intensity.min()}")
-    
+
     if intensity[0] == 0:
         raise ValueError("Cannot normalize: first intensity value is zero")
-    
+
     return intensity / intensity[0]
 ```
 
@@ -2332,14 +2332,14 @@ The agent must understand how reflectivity analysis works, not just library usag
 def calculate_reflectivity_parratt(q_values, layers):
     """
     Calculate X-ray reflectivity using Parratt recursion.
-    
+
     Parameters
     ----------
     q_values : array
         Wavevector transfer values in A^-1
     layers : list of dict
         Each layer: {'thickness': float, 'sld': float, 'roughness': float}
-        
+
     Returns
     -------
     reflectivity : array
@@ -2392,7 +2392,7 @@ def validate_layer_parameters(layers):
             # Roughness should be less than layer thickness
             assert layer['roughness'] < layer['thickness'] / 2, \
                 f"Layer {i} roughness too large relative to thickness"
-    
+
     # Check SLD values are reasonable (typically -1e-6 to 1e-5 A^-2 for X-rays)
     for layer in layers:
         assert abs(layer['sld']) < 1e-4, "SLD value unreasonably large"
@@ -2446,7 +2446,7 @@ from scipy.optimize import curve_fit
 def analyze_nexafs_dichroism(energy, mu_parallel, mu_perpendicular):
     """
     Analyze NEXAFS linear dichroism to determine molecular orientation.
-    
+
     Parameters
     ----------
     energy : array
@@ -2455,7 +2455,7 @@ def analyze_nexafs_dichroism(energy, mu_parallel, mu_perpendicular):
         Absorption for E parallel to reference direction
     mu_perpendicular : array
         Absorption for E perpendicular to reference direction
-        
+
     Returns
     -------
     dichroism_ratio : array
@@ -2467,27 +2467,27 @@ def analyze_nexafs_dichroism(energy, mu_parallel, mu_perpendicular):
     # For pi* transitions: positive dichroism indicates molecules oriented normal to surface
     # For sigma* transitions: negative dichroism indicates molecules lying on surface
     dichroism = (mu_parallel - mu_perpendicular) / (mu_parallel + 2*mu_perpendicular)
-    
+
     # Estimate tilt angle from dichroism
     # For pi* transitions: beta = P2(cos(tilt))
     # Dichroism = beta * (3*cos^2(alpha) - 1)/2
     # Solve for tilt angle
     beta = dichroism  # Simplified for perpendicular geometry
     tilt_angle = np.arccos(np.sqrt((2*beta + 1)/3)) * 180 / np.pi
-    
+
     return dichroism, tilt_angle
 
 def fit_orientation_angle(energy, mu_alpha, alpha_values):
     """
     Fit molecular orientation from polarization-dependent NEXAFS.
-    
+
     Based on: mu(alpha) = mu_0 * [1 + beta * P2(cos(alpha - alpha_0))]
     """
     def model(alpha, mu_0, beta, alpha_0):
         """NEXAFS orientation model."""
         P2 = 0.5 * (3 * np.cos(np.deg2rad(alpha - alpha_0))**2 - 1)
         return mu_0 * (1 + beta * P2)
-    
+
     # Fit for each energy point
     # For pi* transitions: beta should be positive
     # tilt_angle = arccos(sqrt((2*beta + 1)/3))
@@ -2535,10 +2535,10 @@ def validate_nexafs_parameters(beta, tilt_angle):
     """Validate NEXAFS fit parameters."""
     # Beta must be between -1 and 1 for linear dichroism
     assert -1 <= beta <= 1, f"Beta ({beta}) must be between -1 and 1"
-    
+
     # Tilt angle must be between 0 and 90 degrees
     assert 0 <= tilt_angle <= 90, f"Tilt angle ({tilt_angle}) must be between 0 and 90 degrees"
-    
+
     # For pi* transitions, beta should be positive if molecules are upright
     # This is a physics-based check, not a mathematical constraint
 
@@ -2642,7 +2642,7 @@ with ureg.context('spectroscopy'):
 def calculate_reflectivity(q, layers):
     """
     Calculate reflectivity with units.
-    
+
     Parameters
     ----------
     q : pint.Quantity
@@ -2831,3 +2831,24 @@ This guide provides a comprehensive framework for writing performant, reproducib
 
 - For seaborn lineplot under Pyright or Pylance, pass a DataFrame or other supported tabular `data` argument; a bare pandas Series commonly fails `DataSource` typing and produces assignability errors.
 - In agent mode, change notebooks and project files directly instead of only giving manual edit instructions for the user to apply.
+- When editing Jupyter notebook cells in agent mode, use the `EditNotebook` tool rather than raw `.ipynb` file edits or paste-only instructions; do not rewrite notebook content via Python JSON patches unless `EditNotebook` is blocked and the `.ipynb` must be repaired to valid JSON first.
+- For Hugging Face Hub automation in this repo, prefer `huggingface_hub` Python APIs over `hf` CLI subcommands; the CLI surface changes across versions (for example `hf repo files` was removed in recent releases).
+- For manuscript matplotlib figures, preserve the notebook's existing `rcParams` (for example inward-pointing ticks); add labels and colormap styling without overwriting global rcParams.
+- For multi-panel manuscript figures, set vertical spacing only via `plt.subplots(..., gridspec_kw={"hspace": ...})`; do not combine it with `constrained_layout`, manual `GridSpec` margin kwargs, or extra layout calls that override spacing.
+- For manuscript heatmaps over non-uniform spectroscopic energy scans (for example anisotropy maps in `fig_2_fitting.ipynb`), use index-uniform `imshow` y extent with caller-supplied major tick locations (anchors such as 250, 275, 280, 283.7, or dense resonant ticks like 280–283); do not map y to physical eV with `imshow`/`pcolormesh`, which compresses dense scan blocks and crowds tick labels.
+- For manuscript molecule-map / packing panels (for example `fig_5_graded.ipynb`), prioritize correct herringbone or lamellar packing, orientation, and substrate/bulk/surface progression over decorative phase-map overlays; do not add untrusted α/β/F16-style phase coloring unless thresholds are CIF- or literature-grounded and explicitly trusted.
+
+## Learned Workspace Facts
+
+- Collins beamline FITS for data-collection notebooks are read from the mounted volume `/Volumes/DATA/Collins/` (scan paths such as `2026May/...` under that root).
+- Data and model artifacts live under repo-root `@data` and `@models`, not `data/` or `models/`; layout is `@data/<experiment>/<material>/` and `@models/<kind>/<material>/` (for example `@data/xrr/znpc`, `@models/optical/znpc`).
+- `configs/hf-artifacts.toml` maps those local paths to Hugging Face Hub repos; `src/utils/helpers/io.py` exposes `resolve_special_path`, `resolve_hf_mapping`, `resolve_artifact_directory`, `data_dir_for`, and `model_dir_for`.
+- `read_xrr` and `read_ooc` accept `source` in `{"local", "hub", "auto"}`; `auto` uses the local cache and fetches from the Hub when the mapped directory is missing. With `material` set, `read_xrr` uses `resolve_artifact_file` (single parquet via `hf_hub_download`), not `snapshot_download` of the whole repo.
+- DFT, free-tensor, and graded reflectivity/MCMC paths use `src/utils/refloxide_fitting.py` (`configure_refloxide_fitting`) to accelerate pyref via the Rust `refloxide` kernel; for single-energy diagnostic MCMC prefer a single-energy objective with `pool=1`, not a multi-energy `GlobalObjective` plus process pool (see `fit_dft_fix.ipynb` and graded `model_bookended_refloxide`).
+- `models_fitting_results` in `io.py` points to `@models/xrr`, where fitting pickles and related outputs are stored (for example under `dft/`, `free/`).
+- In `notebooks/manuscript/fig_orientation.ipynb`, per-slab orientation fits use `scipy.optimize.least_squares` with a residual-MSE-scaled covariance; depth-profile uncertainty bands use `orientation_profile_uncertainty_gamma` (independent per-slab gamma draws via Monte Carlo through `slab_depth_profile`, 68% pointwise quantiles), not joint `(gamma, density)` sampling or per-slab marginal bound stacking.
+- In `src/utils/profile_slab.py`, adaptive orientation profiles use depth from the film surface (`mid_points`, not `total_thick - depth`), build lab tensors with OOC times density at `get_energy()` and the same n_o/n_e rotation mix as pyref `UniTensorSLD`; `AdaptiveOrientationDensityProfile` exposes `initial_density` and `max_density` (not a generic `density` fit parameter) and scales by local rho(z)/rho_bulk.
+- In pyref, `Structure.plot` dashed/dotted delta_xx/delta_zz are lab-frame n_o and n_e on the smeared depth profile, not molecular OOC n_xx/n_zz; compare profile bulk optics to DFT `UniTensorSLD` using the same convention.
+- In `notebooks/manuscript/fit_profile.ipynb`, graded models inherit `template.model.structure.components[1]` (DFT surface) by reference and replace only the bulk with `AdaptiveOrientationProfile`; set `initial_angle` from surface rotation, `max_angle` as bulk minus surface rotation increment, and pass the pickled `energy_offset` into the profile constructor.
+- `AdaptiveBookendedOrientationDensityProfile` in `profile_slab.py` uses `density_vac`, `density_bulk`, and `density_si` with shared `tau_vac` and `tau_si`; do not add separate decay-length fit parameters beyond those taus.
+- `notebooks/manuscript/fit_spectroscopic_cv.ipynb` runs DFT-only spectroscopic holdout CV (always fit 250 and 283.7 eV; hold out resonant `E > 283.7` or pre-resonant `250 < E < 283.7`); free-tensor CV is out of scope because per-energy OOC refits are not spectroscopically predictive.

@@ -114,6 +114,11 @@ def rxr(x, model, pol):
     array-like
         Reflectivity values
     """
+    from utils.pyref_patch import patch_pyref, pyref_patched
+
+    if not pyref_patched():
+        patch_pyref(use_rust=True, parallel=False)
+
     _pol = model.pol
     model.pol = pol
     y = model(x)

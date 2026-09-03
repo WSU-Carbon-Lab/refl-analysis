@@ -1,3 +1,7 @@
+from utils.graded_objective import (
+    graded_objective_at_energy,
+    upsample_graded_objective,
+)
 from utils.helpers.io import (
     data_external,
     data_interim,
@@ -31,6 +35,19 @@ from utils.helpers.io import (
     scripts_root,
     src_root,
 )
+from utils.objective_energy import (
+    broadcast_structure_probe_energy,
+    objective_retarget_energy,
+    objectives_retarget_energies,
+)
+from utils.refloxide_fitting import (
+    KernelComparisonResult,
+    batched_logl_with_kernel,
+    build_dft_diagnostic_mcmc_bundle,
+    build_dft_diagnostic_pyref_mcmc_objective,
+    compare_kernel_paths,
+    convert_dft_fit_bundle,
+)
 from utils.slab_builders import (
     DEFAULT_FIXED_PARAMS,
     constrain_to_template,
@@ -44,6 +61,17 @@ from utils.slab_builders import (
 __all__ = [
     "DEFAULT_FIXED_PARAMS",
     "constrain_to_template",
+    "broadcast_structure_probe_energy",
+    "KernelComparisonResult",
+    "batched_logl_with_kernel",
+    "build_dft_diagnostic_mcmc_bundle",
+    "build_dft_diagnostic_pyref_mcmc_objective",
+    "compare_kernel_paths",
+    "convert_dft_fit_bundle",
+    "graded_objective_at_energy",
+    "objective_retarget_energy",
+    "objectives_retarget_energies",
+    "upsample_graded_objective",
     "data_external",
     "data_interim",
     "data_processed",
