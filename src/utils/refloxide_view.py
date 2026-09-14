@@ -18,10 +18,10 @@ in order ``vacuum | surface | bulk | interface | oxide | substrate``, so
 ``model.structure[i]`` lines up with the same indices the existing
 pyref-oriented plotting helpers already assume.
 
-Polarization labels: the refloxide fit pickle stores ``s``/``p`` opposite to
-``read_xrr`` hub Data1D labels (``hub.s`` is identical to the objective
-dataset's ``p`` column, and vice versa). When overlaying a refloxide model on
-hub data, construct the view with ``swap_pol=True``.
+Polarization labels: hub ``read_xrr`` and current refloxide fits share the same
+``s``/``p`` convention, so manuscript overlays should use the default
+``swap_pol=False``. Keep ``swap_pol=True`` only for older pickles that still
+store the inverted channel labels.
 """
 
 from __future__ import annotations
@@ -57,8 +57,8 @@ class PolSwitchedModel:
         Starting polarization channel (hub / caller label).
     swap_pol : bool, optional
         When ``True``, map caller ``"s"`` to the refloxide ``p`` channel and
-        caller ``"p"`` to the refloxide ``s`` channel so evaluations line up
-        with ``read_xrr`` hub data.
+        caller ``"p"`` to the refloxide ``s`` channel. Needed only for legacy
+        pickles with inverted polarization labels relative to hub data.
     """
 
     def __init__(
@@ -96,8 +96,8 @@ class RefloxideObjectiveView:
     energy : float
         Photon energy (eV) this view evaluates at.
     swap_pol : bool, optional
-        Forwarded to :class:`PolSwitchedModel`. Use ``True`` when comparing
-        against ``read_xrr`` hub polarization labels.
+        Forwarded to :class:`PolSwitchedModel`. Leave ``False`` for current
+        refloxide fits; use ``True`` only for legacy inverted-label pickles.
     """
 
     def __init__(
@@ -142,8 +142,8 @@ def objective_view_at(
     energy : float
         Photon energy (eV) to view.
     swap_pol : bool, optional
-        When ``True``, remap polarization labels to match ``read_xrr`` hub data
-        (required for manuscript overlays that plot hub ``.s``/``.p`` curves).
+        Remap polarization labels when the pickle still uses the old inverted
+        ``s``/``p`` convention relative to ``read_xrr`` hub data.
 
     Returns
     -------

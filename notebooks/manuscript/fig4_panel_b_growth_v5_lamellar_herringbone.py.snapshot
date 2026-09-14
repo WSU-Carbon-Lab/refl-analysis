@@ -1,0 +1,550 @@
+"""FIG4 panel-(b) molecule packing (lamellar herringbone strip).
+
+Source of truth for the structure strip. Lamellae lie parallel to the
+substrate and are laid down from the buried interface outward; inside each
+lamella molecules tile laterally along a slipped-stack column axis that lies
+in the growth plane, so the only tilted object is the macrocycle itself. The
+herringbone alternates between successive lamellae rather than within one.
+Vacuum is left; Si is right.
+
+Standalone::
+
+    uv run python fig4_panel_b_growth.py
+
+From ``fig_5_graded.ipynb``, call ``configure_packing`` then ``draw_structure``.
+"""
+
+from __future__ import annotations
+
+import sys
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.collections import LineCollection
+from numpy.typing import NDArray
+from PIL import Image
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[1]
+if str(REPO / "src") not in sys.path:
+    sys.path.insert(0, str(REPO / "src"))
+
+SHOW_H = False
+D_LAM = 14.2
+PI_STACK = 3.4
+L_MOL = 13.6
+LAT_FRAC = 0.90
+LIBRATION_DEG = 1.5
+DISORDER_VAC_DEG = 5.0
+DISORDER_SI_DEG = 8.0
+POS_DISORDER_VAC = 0.55
+POS_DISORDER_SI = 0.85
+STRAIN_MIN = 0.90
+STRAIN_MAX = 1.35
+STRAIN_ANISO_SI = 0.08
+HERRINGBONE_MODE = "reflect"
+HERRINGBONE_SPLAY_DEG = 28.9
+GLIDE_FRAC = 0.5
+TILT_FLOOR_DEG = 5.0
+SIN_GAMMA_MIN = 0.35
+SLAB_THICK = 14.0
+ATOMIC_MASS = {"H": 1.008, "C": 12.011, "N": 14.007, "O": 15.999, "Zn": 65.38}
+N_AVOGADRO = 6.02214076e23
+CORR_FRAC = 0.5
+CORR_FLOOR = 0.35
+SEED = 17
+ALIGN_EPS = 1e-8
+N_BULK_Z_MIN = 0.25
+
+ELEM_COLORS = {"C": "#6e6e6e", "N": "#3b55d0", "Zn": "#9a63c0"}
+ELEM_RADIUS = {"C": 0.60, "N": 0.66, "Zn": 1.00}
+BOND_COLOR = "#585858"
+
+XYZ = HERE / "tpznpc_0m.xyz"
+OUT_PNG = HERE / "FIG4_panel_b_replay.png"
+OUT_PDF = HERE / "FIG4_panel_b_replay.pdf"
+COMPARE_PNG = HERE / "FIG4_panel_b_vs_41.png"
+REF_FIG41 = HERE / "FIG4.1.png"
+
+Z_LEFT = -6.0
+TAU_COLOR = "#0b7f8a"
+TAU_LW = 0.85
+TAU_LS = (0, (4, 3))
+
+Z_G: NDArray[np.float64] | None = None
+RHO_MAT: NDArray[np.float64] | None = None
+ALPHA_G: NDArray[np.float64] | None = None
+TOTAL = 0.0
+TAU_SI = 0.0
+TAU_VAC = 0.0
+SURF_ROUGH = 0.0
+RHO_BULK_REF = 1.0
+MOLAR_MASS = 0.0
+DEPTH_XLIM: tuple[float, float] = (Z_LEFT, 0.0)
+
+ELS: NDArray[np.str_] | None = None
+MOL: NDArray[np.float64] | None = None
+BONDS: list[tuple[int, int]] = []
+KEEP: NDArray[np.bool_] | None = None
+
+_HighlightFn = Callable[..., None]
+_highlight_fn: _HighlightFn | None = None
+
+
+def nevot_croce_density(film: Any, *, n_points: int = 2000, n_sigma: int = 5):
+    """Convolve book-ended density with the surface Névot-Croce Gaussian.
+
+    Parameters
+    ----------
+    film
+        Book-ended film component from the graded fit.
+    n_points
+        Samples across ``[0, total_thick]``.
+    n_sigma
+        Kernel half-width in units of surface roughness.
+
+    Returns
+    -------
+    depth, rho_sharp, rho_rough
+        Depth (angstrom) and analytic / smeared densities (g/cm^3).
+    """
+    total = float(film.total_thick.value)
+    sigma = float(film.surface_roughness.value)
+    depth = np.linspace(0.0, total, n_points)
+    rho_sharp = np.asarray(film.local_density(depth), dtype=float)
+    if sigma <= 0.0:
+        return depth, rho_sharp, rho_sharp.copy()
+
+    dz = depth[1] - depth[0]
+    pad = int(np.ceil(n_sigma * sigma / dz))
+    z_ext = np.concatenate(
+        [
+            depth[0] + dz * np.arange(-pad, 0),
+            depth,
+            depth[-1] + dz * np.arange(1, pad + 1),
+        ]
+    )
+    rho_ext = np.empty_like(z_ext)
+    below, above = z_ext < 0.0, z_ext > total
+    inside = ~(below | above)
+    rho_ext[below] = 0.0
+    rho_ext[inside] = np.asarray(film.local_density(z_ext[inside]), dtype=float)
+    rho_ext[above] = float(film.local_density(total))
+
+    kernel = np.exp(-0.5 * (dz * np.arange(-pad, pad + 1) / sigma) ** 2)
+    kernel /= kernel.sum()
+    rho_rough = np.convolve(rho_ext, kernel, mode="same")[pad : pad + n_points]
+    return depth, rho_sharp, rho_rough
+
+
+def _load_znpc() -> tuple[NDArray[np.str_], NDArray[np.float64]]:
+    """Load ZnPc XYZ with the ring plane in xy and ring normal along +z."""
+    lines = XYZ.read_text().splitlines()
+    n = int(lines[0].split()[0])
+    els = np.array([ln.split()[0] for ln in lines[2 : 2 + n]])
+    xyz = np.array([[float(v) for v in ln.split()[1:4]] for ln in lines[2 : 2 + n]])
+    c = xyz - xyz.mean(0)
+    nrm = np.linalg.svd(c)[2][2]
+    a = nrm / np.linalg.norm(nrm)
+    b = np.array([0.0, 0.0, 1.0])
+    v, s = np.cross(a, b), float(np.dot(a, b))
+    if np.linalg.norm(v) < ALIGN_EPS:
+        rot = np.eye(3) if s > 0 else -np.eye(3)
+    else:
+        vx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]], float)
+        rot = np.eye(3) + vx + vx @ vx * (1.0 / (1.0 + s))
+    return els, c @ rot.T
+
+
+def configure_packing(  # noqa: PLR0913
+    film: Any,
+    *,
+    z_left: float = -6.0,
+    z_g: NDArray[np.floating] | None = None,
+    rho_sharp: NDArray[np.floating] | None = None,
+    alpha_g: NDArray[np.floating] | None = None,
+    highlight_fn: _HighlightFn | None = None,
+    xyz_path: Path | None = None,
+) -> dict[str, float]:
+    """Bind graded-film profiles and load the ZnPc geometry for ``draw_structure``.
+
+    Parameters
+    ----------
+    film
+        Book-ended film from ``extract_graded_fit_context(...).film``.
+    z_left
+        Left depth-axis pad (angstrom), matching the manuscript ``Z_LEFT``.
+    z_g, rho_sharp, alpha_g
+        Optional precomputed profiles; when omitted they are built from ``film``.
+    highlight_fn
+        Optional ``(ax, *, halo=True)`` marker drawer. Defaults to the module
+        tau markers.
+    xyz_path
+        Override path to ``tpznpc_0m.xyz``.
+
+    Returns
+    -------
+    dict
+        ``total``, ``tau_vac``, ``tau_si``, and ``gamma_median`` for callers.
+    """
+    global XYZ, Z_LEFT, Z_G, RHO_MAT, ALPHA_G, TOTAL, TAU_SI, TAU_VAC
+    global SURF_ROUGH, RHO_BULK_REF, DEPTH_XLIM, ELS, MOL, BONDS, KEEP, MOLAR_MASS
+    global _highlight_fn
+
+    if xyz_path is not None:
+        XYZ = Path(xyz_path)
+    Z_LEFT = float(z_left)
+    _highlight_fn = highlight_fn
+
+    if z_g is None or rho_sharp is None:
+        z_g, rho_sharp, _rho_rough = nevot_croce_density(film)
+    if alpha_g is None:
+        alpha_g = np.degrees(np.asarray(film.orientation(z_g), dtype=float))
+
+    Z_G = np.asarray(z_g, dtype=float)
+    RHO_MAT = np.asarray(rho_sharp, dtype=float)
+    ALPHA_G = np.asarray(alpha_g, dtype=float)
+    TOTAL = float(film.total_thick.value)
+    TAU_SI = float(film.tau_si.value)
+    TAU_VAC = float(film.tau_vac.value)
+    SURF_ROUGH = float(film.surface_roughness.value)
+    RHO_BULK_REF = float(film.density_bulk.value)
+    DEPTH_XLIM = (Z_LEFT, TOTAL)
+
+    ELS, MOL = _load_znpc()
+    MOLAR_MASS = float(sum(ATOMIC_MASS[e] for e in ELS))
+    dm = np.linalg.norm(MOL[:, None, :] - MOL[None, :, :], axis=-1)
+    BONDS = [
+        (i, j)
+        for i in range(len(MOL))
+        for j in range(i + 1, len(MOL))
+        if dm[i, j] < (2.2 if "Zn" in (ELS[i], ELS[j]) else 1.75)
+        and (SHOW_H or ("H" not in (ELS[i], ELS[j])))
+    ]
+    KEEP = np.array([SHOW_H or e != "H" for e in ELS])
+
+    return {
+        "total": TOTAL,
+        "tau_vac": TAU_VAC,
+        "tau_si": TAU_SI,
+        "gamma_median": float(np.median(ALPHA_G)),
+    }
+
+
+def _gamma(z: float) -> float:
+    if Z_G is None:
+        raise RuntimeError("configure_packing required")
+    if ALPHA_G is None:
+        raise RuntimeError("configure_packing required")
+    return float(np.interp(z, Z_G, ALPHA_G))
+
+
+def highlight_interface(ax, *, halo: bool = True) -> None:
+    """Draw vacuum and buried tau markers on the structure strip."""
+    if _highlight_fn is not None:
+        _highlight_fn(ax, halo=halo)
+        return
+    for z_tau in (TAU_VAC, TOTAL - TAU_SI):
+        if halo:
+            ax.axvline(
+                z_tau,
+                color="white",
+                lw=TAU_LW + 1.1,
+                solid_capstyle="butt",
+                zorder=4,
+            )
+        ax.axvline(
+            z_tau,
+            color=TAU_COLOR,
+            lw=TAU_LW,
+            ls=TAU_LS,
+            solid_capstyle="butt",
+            zorder=5,
+        )
+
+
+def shade_substrate(ax) -> None:
+    """Fade a grey wedge into the Si side of the strip."""
+    z0 = TOTAL - 2.0 * TAU_SI
+    z1 = TOTAL
+    n = 80
+    edges = np.linspace(z0, z1, n + 1)
+    alphas = 0.22 * np.linspace(0.0, 1.0, n) ** 2.0
+    for x0, x1, a in zip(edges[:-1], edges[1:], alphas, strict=True):
+        ax.axvspan(x0, x1, color="0.40", alpha=float(a), lw=0, zorder=0)
+
+
+def _molecule_2d(
+    gamma_deg: float, centre: NDArray[np.float64], sense: int = 1
+) -> NDArray[np.float64]:
+    """Project one macrocycle into (depth, lateral) for polar tilt ``gamma``.
+
+    In splay mode ``sense`` only selects the partner after the caller has
+    already offset gamma by ``+/- HERRINGBONE_SPLAY_DEG/2``. In reflect mode
+    the molecular frame is mirrored across the depth axis.
+    """
+    assert MOL is not None
+    g = np.radians(gamma_deg)
+    s = 1.0 if (sense >= 0 or HERRINGBONE_MODE != "reflect") else -1.0
+    n_hat = np.array([np.cos(g), s * np.sin(g)])
+    t_hat = np.array([-s * np.sin(g), np.cos(g)])
+    xy = np.outer(MOL[:, 0], t_hat) + np.outer(MOL[:, 2], n_hat)
+    return xy + centre
+
+
+def _lattice_scale(z: float) -> float:
+    """Areal lattice scale ``sqrt(rho_bulk / rho)`` clamped to the strain window."""
+    if Z_G is None:
+        raise RuntimeError("configure_packing required")
+    if RHO_MAT is None:
+        raise RuntimeError("configure_packing required")
+    r = max(float(np.interp(z, Z_G, RHO_MAT)) / RHO_BULK_REF, 1e-3)
+    s_ideal = float(np.sqrt(1.0 / r))
+    return float(np.clip(s_ideal, STRAIN_MIN, STRAIN_MAX))
+
+
+def cell_area(z: float) -> float:
+    """Area per molecule (angstrom^2) implied by ``rho(z)`` and ``SLAB_THICK``.
+
+    The strip is a projection through a slab ``SLAB_THICK`` thick, so one
+    molecule must occupy ``M / (rho N_A t)``. Drawn number density is then a
+    consequence of panel (d) rather than of the drawing constants, which set
+    only the shape of the cell. The clamp is the same strain window as
+    ``_lattice_scale`` and bites only where the fitted density collapses.
+    """
+    if Z_G is None or RHO_MAT is None:
+        raise RuntimeError("configure_packing required")
+    rho = max(float(np.interp(z, Z_G, RHO_MAT)), 1e-3)
+    a_ideal = MOLAR_MASS / (rho * N_AVOGADRO * 1e-24 * SLAB_THICK)
+    a_bulk = MOLAR_MASS / (RHO_BULK_REF * N_AVOGADRO * 1e-24 * SLAB_THICK)
+    return float(np.clip(a_ideal, a_bulk * STRAIN_MIN**2, a_bulk * STRAIN_MAX**2))
+
+
+def draw_structure(ax, y_half: float) -> None:  # noqa: PLR0915
+    """Draw the FIG4.1 herringbone strip: stack along bulk orientation.
+
+    The lamellar axis is the substrate normal, not the ring normal, so rows of
+    molecules are iso-depth and grain boundaries are coplanar with the Si
+    interface. Within a lamella every molecule shares ``gamma(z)`` and one
+    tilt sense, since neighbours along the column axis are related by pure
+    translation; the herringbone partner is the next lamella, reached by the
+    mirror in ``_molecule_2d`` plus a ``GLIDE_FRAC`` lateral offset. Both
+    sublattices therefore carry the same polar tilt and the structural repeat
+    is two lamellae. The cell is ``(L_MOL * LAT_FRAC * sin gamma)`` deep by
+    ``(PI_STACK / sin gamma)`` wide, so its area is set by the local density
+    alone and the orientation profile only reshapes it.
+    """
+    if MOL is None or ELS is None or KEEP is None or Z_G is None or ALPHA_G is None:
+        raise RuntimeError("call configure_packing(...) before draw_structure")
+
+    rng = np.random.default_rng(SEED)
+    segs: list[list[NDArray[np.float64]]] = []
+    pts: list[NDArray[np.float64]] = []
+    elem: list[NDArray[np.str_]] = []
+    r_keep = 0.28 * L_MOL
+
+    _kk = np.array([1.0, 1.7, 2.6, 3.9, 5.3, 7.1])
+    _ph = rng.uniform(0, 2 * np.pi, _kk.size)
+
+    def corrugation(y: float) -> float:
+        """Unit-amplitude growth-front undulation, shared by every lamella."""
+        s_ = np.sin(2 * np.pi * _kk * (y + y_half) / (2 * y_half) + _ph).sum()
+        return float(s_ / np.sqrt(_kk.size / 2.0))
+
+    def z_surface(y: float) -> float:
+        return 0.35 * SURF_ROUGH * corrugation(y)
+
+    def cell(z: float) -> tuple[float, float, float]:
+        """Lamellar period (depth), column period (lateral), and gamma at ``z``.
+
+        The cell area comes from ``rho(z)``; ``LAT_FRAC`` and ``PI_STACK`` set
+        only its aspect ratio, and the near-Si uniaxial strain is applied as an
+        area-preserving shear so the drawn density stays tied to panel (d).
+        """
+        g = _gamma(z)
+        s_g = float(np.clip(abs(np.sin(np.radians(g))), SIN_GAMMA_MIN, 1.0))
+        area = cell_area(z)
+        ratio = L_MOL * LAT_FRAC * s_g**2 / PI_STACK
+        aniso = 1.0 + STRAIN_ANISO_SI * float(np.exp(-(TOTAL - z) / TAU_SI))
+        return np.sqrt(area * ratio) * aniso, np.sqrt(area / ratio) / aniso, g
+
+    # Growth runs from the buried interface outward, so the lamellar register is
+    # anchored at Si and the incommensurate layer is truncated at the free
+    # surface. Stacking columns along the ring normal instead would rotate the
+    # entire lattice by gamma and produce a diagonal grain that the GIWAXS
+    # excludes.
+    z_rows: list[float] = []
+    z_cur = TOTAL
+    while z_cur > -0.5 * L_MOL:
+        z_rows.append(z_cur)
+        z_cur -= cell(float(np.clip(z_cur, 0.0, TOTAL)))[0]
+
+    for i, z_row in enumerate(z_rows):
+        z_ref = float(np.clip(z_row, 0.0, TOTAL))
+        _d_lam, c_stack, g_row = cell(z_ref)
+        amorph_si = float(np.exp(-(TOTAL - z_ref) / TAU_SI))
+        amorph_vac = float(np.exp(-z_ref / TAU_VAC))
+        spread = (
+            LIBRATION_DEG
+            + DISORDER_VAC_DEG * amorph_vac
+            + DISORDER_SI_DEG * amorph_si
+        )
+        jit = POS_DISORDER_VAC * amorph_vac + POS_DISORDER_SI * amorph_si
+        corr_amp = (
+            CORR_FRAC * SURF_ROUGH * (CORR_FLOOR + (1.0 - CORR_FLOOR) * amorph_vac)
+        )
+        sense = 1 if i % 2 == 0 else -1
+        phase = GLIDE_FRAC * c_stack * (i % 2)
+        n_j = int(np.ceil((y_half + L_MOL) / c_stack)) + 2
+
+        for j in range(-n_j, n_j + 1):
+            y = j * c_stack + phase
+            z = z_row + corr_amp * corrugation(y)
+            if not (Z_LEFT + r_keep <= z <= TOTAL and abs(y) <= y_half - r_keep):
+                continue
+            if z < max(z_surface(y), 0.5):
+                continue
+            centre = np.array([z, y]) + rng.normal(0.0, jit, 2)
+            g = g_row + rng.normal(0.0, spread)
+            if HERRINGBONE_MODE == "splay":
+                g += 0.5 * HERRINGBONE_SPLAY_DEG * sense
+                g = max(g, TILT_FLOOR_DEG)
+            xy = _molecule_2d(g, centre, sense=sense)
+            segs += [[xy[a], xy[b]] for a, b in BONDS]
+            pts.append(xy[KEEP])
+            elem.append(ELS[KEEP])
+
+    if not pts:
+        raise RuntimeError("draw_structure produced no molecules")
+    pts_arr = np.vstack(pts)
+    elem_arr = np.concatenate(elem)
+
+    ax.add_collection(
+        LineCollection(
+            segs, colors=BOND_COLOR, linewidths=0.45, zorder=3, capstyle="round"
+        )
+    )
+    for e, col in ELEM_COLORS.items():
+        m = elem_arr == e
+        if m.any():
+            ax.scatter(
+                pts_arr[m, 0],
+                pts_arr[m, 1],
+                s=(2 * ELEM_RADIUS[e]) ** 2 * 1.6,
+                c=col,
+                edgecolors="none",
+                zorder=4,
+            )
+    highlight_interface(ax, halo=True)
+    lab_bbox = {"fc": "white", "ec": "none", "alpha": 0.78, "pad": 0.6}
+    ax.annotate(
+        "vacuum",
+        xy=(0.010, 0.97),
+        xycoords="axes fraction",
+        fontsize=6.5,
+        color="0.3",
+        ha="left",
+        va="top",
+        bbox=lab_bbox,
+        zorder=10,
+    )
+    ax.annotate(
+        "Si",
+        xy=(0.990, 0.97),
+        xycoords="axes fraction",
+        fontsize=6.5,
+        color="0.3",
+        ha="right",
+        va="top",
+        bbox=lab_bbox,
+        zorder=10,
+    )
+    ax.set_yticks([])
+    ax.tick_params(
+        which="both",
+        left=False,
+        right=False,
+        bottom=False,
+        top=False,
+        labelleft=False,
+        labelright=False,
+        labelbottom=False,
+        labeltop=False,
+        length=0,
+    )
+    for tick in list(ax.xaxis.get_major_ticks()) + list(ax.xaxis.get_minor_ticks()):
+        tick.tick1line.set_visible(False)
+        tick.tick2line.set_visible(False)
+        tick.label1.set_visible(False)
+        tick.label2.set_visible(False)
+    ax.grid(False)
+    for sp in ("left", "right", "top", "bottom"):
+        ax.spines[sp].set_visible(False)
+
+
+def render_panel_b() -> plt.Figure:
+    """Build a single-column structure strip matching the FIG4 panel-(b) aspect."""
+    fig_w = 3.35
+    fig_h = 0.95
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=300)
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.92, bottom=0.08)
+
+    fig.canvas.draw()
+    pos = ax.get_position()
+    w_in = pos.width * fig_w
+    h_in = pos.height * fig_h
+    xspan = DEPTH_XLIM[1] - DEPTH_XLIM[0]
+    y_half = 0.5 * xspan * (h_in / w_in)
+
+    shade_substrate(ax)
+    draw_structure(ax, y_half)
+    ax.set_xlim(*DEPTH_XLIM)
+    ax.set_ylim(-y_half, y_half)
+    ax.set_aspect("equal", adjustable="box")
+    return fig
+
+
+def write_comparison(replay_path: Path) -> None:
+    """Save a side-by-side crop of FIG4.1 panel (b) vs the replay strip."""
+    if not REF_FIG41.exists():
+        return
+    ref = Image.open(REF_FIG41).convert("RGB")
+    rw, rh = ref.size
+    box = (int(0.12 * rw), int(0.42 * rh), int(0.95 * rw), int(0.58 * rh))
+    ref_crop = ref.crop(box)
+    replay = Image.open(replay_path).convert("RGB")
+    hgt = 220
+    ref_r = ref_crop.resize((int(ref_crop.width * hgt / ref_crop.height), hgt))
+    rep_r = replay.resize((int(replay.width * hgt / replay.height), hgt))
+    width = ref_r.width + rep_r.width + 16
+    canvas = Image.new("RGB", (width, hgt + 28), (255, 255, 255))
+    canvas.paste(ref_r, (0, 24))
+    canvas.paste(rep_r, (ref_r.width + 16, 24))
+    canvas.save(COMPARE_PNG)
+
+
+def main() -> None:
+    """Load the graded fit, render the FIG4.1 strip, and write PNG/PDF."""
+    from utils import objectives_retarget_energies, read_fit, read_xrr
+    from utils.graded_objective import extract_graded_fit_context
+    from utils.models import configure_refloxide_fitting
+
+    configure_refloxide_fitting()
+    energy = 283.7
+    data = read_xrr("reflectivity_data", material="znpc", source="hub")
+    graded_fit = read_fit("graded/graded_fit.pkl", material="znpc", source="local")
+    graded_obj = objectives_retarget_energies(graded_fit, [energy], data=data)[energy]
+    film = extract_graded_fit_context(graded_obj).film
+    configure_packing(film, z_left=Z_LEFT, xyz_path=HERE / "tpznpc_0m.xyz")
+    fig = render_panel_b()
+    fig.savefig(OUT_PNG, dpi=600, transparent=True)
+    fig.savefig(OUT_PDF, dpi=600, transparent=True)
+    plt.close(fig)
+    write_comparison(OUT_PNG)
+
+
+if __name__ == "__main__":
+    main()

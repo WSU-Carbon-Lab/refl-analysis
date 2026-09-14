@@ -6,10 +6,10 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'win32'",
-    "python_full_version < '3.13' and sys_platform == 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
@@ -1085,7 +1085,7 @@ name = "emcee"
 version = "3.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", marker = "python_full_version >= '3.13'" },
+    { name = "numpy" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cb/53/1045ee878cb24281387079f8ee4f0ade1622c6aae1ed1fd91a53e4fa5b19/emcee-3.1.6.tar.gz", hash = "sha256:11af4daf6ab8f9ca69681e3c29054665db7bbd87fd4eb8e437d2c3a1248c637d", size = 2871117, upload-time = "2024-04-19T10:03:19.555Z" }
 wheels = [
@@ -1144,10 +1144,10 @@ resolution-markers = [
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "matplotlib", marker = "python_full_version < '3.13'" },
-    { name = "numpy", marker = "python_full_version < '3.13'" },
-    { name = "pandas", marker = "python_full_version < '3.13'" },
-    { name = "scipy", marker = "python_full_version < '3.13'" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scipy" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/66/0e/af1ce5b044187de3206d9da4c7fbaf65ead2b6490de5c446c671bb553a5c/ezfit-0.1.5.tar.gz", hash = "sha256:ad5aa34accfc611d88f8640e29d93a888d2808f840be750673eeef7b135c1ce0", size = 74256, upload-time = "2024-12-19T22:40:20.624Z" }
 wheels = [
@@ -1167,16 +1167,16 @@ resolution-markers = [
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "arviz", marker = "python_full_version >= '3.13'" },
-    { name = "corner", marker = "python_full_version >= '3.13'" },
-    { name = "emcee", marker = "python_full_version >= '3.13'" },
-    { name = "matplotlib", marker = "python_full_version >= '3.13'" },
-    { name = "numba", marker = "python_full_version >= '3.13'" },
-    { name = "numpy", marker = "python_full_version >= '3.13'" },
-    { name = "pandas", marker = "python_full_version >= '3.13'" },
-    { name = "scikit-learn", marker = "python_full_version >= '3.13'" },
-    { name = "scipy", marker = "python_full_version >= '3.13'" },
-    { name = "tqdm", marker = "python_full_version >= '3.13'" },
+    { name = "arviz" },
+    { name = "corner" },
+    { name = "emcee" },
+    { name = "matplotlib" },
+    { name = "numba" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "tqdm" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/07/a6/f168fe9f8fc601daf62d5dafa15d6e99f47651abfd58549f0e2b359810e6/ezfit-0.5.7.tar.gz", hash = "sha256:067b8db28d27bd98647ff2a76cb9aadcaf7bce981436a18f3e5d9973b2f38cd1", size = 3205082, upload-time = "2025-12-29T02:08:31.174Z" }
 wheels = [
@@ -3423,7 +3423,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "ptyprocess" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -4323,7 +4323,7 @@ wheels = [
 
 [[package]]
 name = "refloxide"
-version = "0.1.5"
+version = "0.1.6"
 source = { directory = "../refloxide" }
 dependencies = [
     { name = "tqdm" },

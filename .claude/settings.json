@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /Users/hduva/projects/refloxide 2>&1 | head -50)",
+      "Read(//Users/hduva/projects/refloxide/**)",
+      "Bash(cd /Users/hduva/projects/refloxide && find . -path ./target -prune -o -path ./.git -prune -o -name \"*.py\" -print | grep -v __pycache__ | head -100)",
+      "Bash(cd /Users/hduva/projects/refloxide && cat CHANGELOG.md | head -150)",
+      "Bash(cd /Users/hduva/projects/refloxide && grep -rln \"patch_pyref\\\\|pyref_patched\\\\|require_pyref_patched\\\\|uniaxial_reflectivity\" --include=\"*.py\" src/ examples/ tests/ 2>/dev/null)",
+      "Bash(cd /Users/hduva/projects/refloxide && wc -l src/refloxide/pxr/plugin/model.py src/refloxide/pxr/plugin/structure.py src/refloxide/pxr/plugin/batched_global.py src/refloxide/pxr/plugin/dispersive_model.py src/refloxide/pxr/plugin/fitters.py src/refloxide/pxr/plugin/dft_fit.py src/refloxide/pxr/plugin/io.py src/refloxide/python/model.py src/refloxide/pxr/__init__.py src/refloxide/__init__.py)",
+      "Bash(python3 -c ' *)",
+      "Read(//Users/hduva/projects/refloxide/src/refloxide/**)",
+      "Bash(cd /Users/hduva/projects/refloxide && sed -n '1,200p' AGENTS.md)",
+      "Bash(cd /Users/hduva/projects/refloxide && echo \"=== fitters.py imports ===\" && sed -n '1,40p' src/refloxide/pxr/plugin/fitters.py *)",
+      "Bash(ls /Users/hduva/projects/pyref 2>&1 | head -30 *)",
+      "Read(//Users/hduva/projects/pyref/**)",
+      "Bash(cat /Users/hduva/projects/pyref/python/pyref/fitting/__init__.py)",
+      "Read(//Users/hduva/projects/pyref/python/pyref/fitting/**)",
+      "Bash(grep -n \"^class\\\\|^from refnx\\\\|GlobalObjective\\\\|^Objective\\\\|CurveFitter\\\\|Transform\" /Users/hduva/projects/pyref/python/pyref/fitting/fitters.py | head -40)",
+      "Bash(cd /Users/hduva/projects/refloxide && grep -n \"^def reflectivity\\\\|^class ReflectModel\" -A 60 src/refloxide/pxr/plugin/model.py | head -120)",
+      "Bash(cd /Users/hduva/projects/refloxide && echo \"=== pxr/energy/__init__.py ===\" && cat src/refloxide/pxr/energy/__init__.py *)"
+    ]
+  }
+}
