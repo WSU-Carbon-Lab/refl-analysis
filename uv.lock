@@ -4326,11 +4326,15 @@ name = "refloxide"
 version = "0.1.6"
 source = { directory = "../refloxide" }
 dependencies = [
+    { name = "dotenv" },
     { name = "tqdm" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "tqdm", specifier = ">=4.68.4" }]
+requires-dist = [
+    { name = "dotenv", specifier = ">=0.9.9" },
+    { name = "tqdm", specifier = ">=4.68.4" },
+]
 
 [package.metadata.requires-dev]
 dev = [

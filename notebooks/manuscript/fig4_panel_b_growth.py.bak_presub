@@ -50,19 +50,6 @@ HERRINGBONE_SPLAY_DEG = 28.9
 GLIDE_FRAC = 0.5
 TILT_FLOOR_DEG = 5.0
 SIN_GAMMA_MIN = 0.35
-
-# Substrate exclusion, added for the interface comparison. "off" reproduces the
-# published strip byte for byte and is the default. "clip" rejects any molecule
-# whose drawn footprint crosses into the substrate; the test sits after the
-# random draws for that molecule, so every other molecule keeps the random
-# numbers it had and the two renders differ only by the molecules removed.
-# "shift" additionally seeds the lamellar register where a tilted molecule can
-# sit flush against the substrate, so the first row is thinned rather than
-# deleted wholesale. That moves every row, so the whole strip redraws.
-SUBSTRATE_MODE = "off"   # "off" | "clip" | "shift" | "tilt"
-TILT_SEARCH_N = 60       # grid points for the substrate tilt clamp
-SUB_CLEAR = 0.0          # extra clearance, angstrom, e.g. a drawn atomic radius
-SUB_LIFT = 0.0           # extra clearance when "tilt" has to translate a molecule
 SLAB_THICK = 14.0
 ATOMIC_MASS = {"H": 1.008, "C": 12.011, "N": 14.007, "O": 15.999, "Zn": 65.38}
 N_AVOGADRO = 6.02214076e23
@@ -366,62 +353,6 @@ def _points_per_angstrom(ax) -> float:
     return float(w_in * 72.0 / span)
 
 
-def _max_depth_offset(gamma_deg: float, sense: int) -> float:
-    """Largest depth offset of any drawn atom for a molecule at this tilt.
-
-    Exact rather than ``0.5 * L_MOL * sin(gamma)``, since it uses the real
-    atomic positions and the same projection ``_molecule_2d`` applies.
-    """
-    assert MOL is not None and KEEP is not None
-    g = np.radians(gamma_deg)
-    s = 1.0 if (sense >= 0 or HERRINGBONE_MODE != "reflect") else -1.0
-    a, b = MOL[KEEP, 0], MOL[KEEP, 2]
-    return float(np.max(-s * a * np.sin(g) + b * np.cos(g)))
-
-
-def _tilt_that_fits(gamma_deg: float, z_centre: float, sense: int) -> float:
-    """Largest tilt at or below ``gamma_deg`` whose footprint clears the substrate.
-
-    A molecule close to the substrate cannot stand at the bulk tilt, so it lies
-    flatter instead of disappearing. Keeping the molecule is what holds the
-    drawn number density tied to rho(z). Flat is nearly always admissible,
-    since the macrocycle is planar to a fraction of an angstrom, so this fails
-    only when the centre is already inside the substrate.
-    """
-    head = TOTAL - SUB_CLEAR - z_centre
-    if _max_depth_offset(gamma_deg, sense) <= head:
-        return gamma_deg
-    grid = np.linspace(0.0, abs(gamma_deg), TILT_SEARCH_N)
-    fits = [g for g in grid if _max_depth_offset(g, sense) <= head]
-    if not fits:
-        return float("nan")
-    return float(max(fits)) * (1.0 if gamma_deg >= 0 else -1.0)
-
-
-def _fit_to_substrate(gamma_deg, centre, sense):
-    """Tilt, then translate, until a molecule's footprint clears the substrate.
-
-    Rotation is spent first. A molecule pinned against the substrate is laid
-    flatter, down to flat if it must be, which is what a molecule against a
-    hard wall does and costs nothing in position. Only a molecule whose centre
-    is so close to the interface that even a flat macrocycle still crosses is
-    then translated, by exactly the residual plus ``SUB_LIFT``. The translation
-    is uncapped, so a molecule is never deleted however deep its jittered
-    centre landed.
-
-    Returns the tilt to draw and the possibly shifted centre.
-    """
-    z = float(centre[0])
-    head = TOTAL - SUB_CLEAR - z
-    if _max_depth_offset(gamma_deg, sense) <= head:
-        return gamma_deg, centre
-    g_fit = _tilt_that_fits(gamma_deg, z, sense)
-    if np.isfinite(g_fit):
-        return g_fit, centre             # flattening alone was enough
-    shift = _max_depth_offset(0.0, sense) - head + SUB_LIFT
-    return 0.0, np.array([z - shift, float(centre[1])])
-
-
 def draw_structure(ax, y_half: float) -> None:  # noqa: PLR0915
     """Draw the FIG4.1 herringbone strip: stack along bulk orientation.
 
@@ -477,10 +408,6 @@ def draw_structure(ax, y_half: float) -> None:  # noqa: PLR0915
     # excludes.
     z_rows: list[float] = []
     z_cur = TOTAL
-    if SUBSTRATE_MODE == "shift":
-        # Seed the register where a molecule at the local tilt sits flush
-        # against the substrate instead of straddling it.
-        z_cur = TOTAL - 0.5 * L_MOL * abs(np.sin(np.radians(_gamma(TOTAL))))
     while z_cur > -0.5 * L_MOL:
         z_rows.append(z_cur)
         z_cur -= cell(float(np.clip(z_cur, 0.0, TOTAL)))[0]
@@ -515,12 +442,7 @@ def draw_structure(ax, y_half: float) -> None:  # noqa: PLR0915
             if HERRINGBONE_MODE == "splay":
                 g += 0.5 * HERRINGBONE_SPLAY_DEG * sense
                 g = max(g, TILT_FLOOR_DEG)
-            if SUBSTRATE_MODE == "tilt":
-                g, centre = _fit_to_substrate(g, centre, sense)
             xy = _molecule_2d(g, centre, sense=sense)
-            if (SUBSTRATE_MODE in ("clip", "shift")
-                    and xy[KEEP, 0].max() + SUB_CLEAR > TOTAL):
-                continue  # drawn footprint would cross into the substrate
             segs += [[xy[a], xy[b]] for a, b in BONDS]
             pts.append(xy[KEEP])
             elem.append(ELS[KEEP])
