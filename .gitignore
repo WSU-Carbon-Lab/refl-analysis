@@ -88,3 +88,4 @@ notebooks/manuscript/*.html
 /FIG*.pdf
 /FIG2.1.png
 tpZnPc_0m.cif
+*.egg-info/
