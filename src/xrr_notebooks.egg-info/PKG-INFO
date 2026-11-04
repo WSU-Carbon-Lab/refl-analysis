@@ -35,11 +35,12 @@ Requires-Dist: ollama>=0.6.1
 Requires-Dist: openpyxl>=3.1.5
 Requires-Dist: pandas
 Requires-Dist: plotly>=6.7.0
+Requires-Dist: polars
 Requires-Dist: pyarrow>=23.0.0
 Requires-Dist: pyhyperscattering[bluesky,ui]
-Requires-Dist: pyref>=0.8.2
 Requires-Dist: pyrefly>=0.38.2
-Requires-Dist: refloxide==0.2.1
+Requires-Dist: refloxide[plugin]==0.2.1
+Requires-Dist: refnx>=0.1.64
 Requires-Dist: rich>=14.3.2
 Requires-Dist: ridgeplot>=0.5.0
 Requires-Dist: ruff
@@ -54,6 +55,8 @@ Requires-Dist: websockets>=16.0
 Requires-Dist: xarray>=2025.12.0
 Requires-Dist: zarr>=3.1.5
 Requires-Dist: zstandard>=0.25.0
+Provides-Extra: legacy
+Requires-Dist: pyref>=0.8.2; extra == "legacy"
 Dynamic: license-file
 
 # refl-analysis
@@ -73,21 +76,25 @@ Repository: <https://github.com/WSU-Carbon-Lab/refl-analysis> · License: MIT (s
 | `notebooks/fitting/`, `scripts/` | Fitting workflows |
 
 Reflectivity physics (Parratt recursion, anisotropic tensor model, fitting) is described in the
-manuscript Methods and Supplementary Information; implementation is in the `pyref` and `refloxide` packages.
+manuscript Methods and Supplementary Information; implementation is in the [`refloxide`](https://pypi.org/project/refloxide/) package, which is the intended interface for all reflectivity modeling and fitting here.
 
 ## Requirements
 
 - Python 3.12 · [uv](https://docs.astral.sh/uv/)
-- Key dependencies (exact versions in `uv.lock`): `pyref` 0.8.2, `refloxide` 0.2.1, numpy, scipy, pandas, polars, matplotlib
+- Core dependencies (exact versions in `uv.lock`): `refloxide` 0.2.1 (prebuilt wheels for Linux, macOS, Windows), `refnx`, numpy, scipy, pandas, polars, matplotlib
 - Tested on: macOS 26 (Apple M-series), Python 3.12. No non-standard hardware needed
   (a GPU is optional and only used by some fitting scripts).
-- Typical install time: ~5 min on a normal desktop (`uv sync`).
+- **Optional legacy dependency:** `pyref` is needed only for the manuscript/fitting notebooks and `src/utils`
+  code written against `pyref.fitting` (and to unpickle the original fit files). Install with
+  `uv sync --extra legacy`. It has a prebuilt wheel for Linux x86_64 only; elsewhere it compiles from source
+  and needs a Rust toolchain (<https://rustup.rs>). The demo does **not** need it.
+- Typical install time: ~5 min on a normal desktop (`uv sync`; longer if `pyref` must compile with `--extra legacy`).
 
 ## Run the demo
 
 ```bash
 uv sync
-uv run python demo/run_demo.py
+uv run python demo/run_demo.py   # needs only refloxide + refnx
 ```
 
 Expected output (~3 s) — recovers the simulated film (150 Å, 1.5 g/cm³, 4 Å roughness):
@@ -108,10 +115,20 @@ Edit `ENERGY_EV` and the layer stack in `demo/run_demo.py` for your sample.
 
 ## Reproducing the manuscript figures
 
+The manuscript notebooks use legacy `pyref`-based helpers: run `uv sync --extra legacy` first.
+New work should use `refloxide.model` / `refloxide.objective` directly (see `demo/run_demo.py`).
+
 The manuscript notebooks read measured data and fit results from `@data/` and `@models/`.
 **These are not distributed with the repository; they are available from the authors on request.**
 With the files placed under those folders (layout: `@data/xrr/znpc/`, `@models/xrr/znpc/`,
 `@models/optical/znpc/`), run the notebooks in `notebooks/manuscript/` (`FIG1`–`FIG4`, `SI*`, `APX*`).
+
+### Raw-data examples
+
+Raw CCD detector images from the 2024 November beamtime are preserved in this repository's git history
+(e.g. `git show 067728c:"data/2024Nov/2024 11 16/CCD Scan 85272/CCD/<file>"`; list with
+`git ls-tree -r --name-only 067728c -- data/2024Nov`). The reduced reflectivity, fits, and
+2026 beamtime data are available from the authors on request.
 
 ## Notebook index (`notebooks/manuscript/`)
 

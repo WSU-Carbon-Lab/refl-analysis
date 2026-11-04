@@ -15,23 +15,25 @@ Repository: <https://github.com/WSU-Carbon-Lab/refl-analysis> · License: MIT (s
 | `notebooks/fitting/`, `scripts/` | Fitting workflows |
 
 Reflectivity physics (Parratt recursion, anisotropic tensor model, fitting) is described in the
-manuscript Methods and Supplementary Information; implementation is in the `pyref` and `refloxide` packages.
+manuscript Methods and Supplementary Information; implementation is in the [`refloxide`](https://pypi.org/project/refloxide/) package, which is the intended interface for all reflectivity modeling and fitting here.
 
 ## Requirements
 
 - Python 3.12 · [uv](https://docs.astral.sh/uv/)
-- Key dependencies (exact versions in `uv.lock`): `pyref` 0.8.2, `refloxide` 0.2.1, numpy, scipy, pandas, polars, matplotlib
-- Tested on: macOS 26 (Apple M-series), Python 3.12, with `pyref` built locally. No non-standard hardware
-  needed (a GPU is optional and only used by some fitting scripts).
-- `pyref` ships a prebuilt wheel for Linux x86_64 only; on macOS/Windows `uv sync` compiles it from source
-  and needs a Rust toolchain (<https://rustup.rs>).
-- Typical install time: ~5 min on a normal desktop (`uv sync`; longer if `pyref` must compile).
+- Core dependencies (exact versions in `uv.lock`): `refloxide` 0.2.1 (prebuilt wheels for Linux, macOS, Windows), `refnx`, numpy, scipy, pandas, polars, matplotlib
+- Tested on: macOS 26 (Apple M-series), Python 3.12. No non-standard hardware needed
+  (a GPU is optional and only used by some fitting scripts).
+- **Optional legacy dependency:** `pyref` is needed only for the manuscript/fitting notebooks and `src/utils`
+  code written against `pyref.fitting` (and to unpickle the original fit files). Install with
+  `uv sync --extra legacy`. It has a prebuilt wheel for Linux x86_64 only; elsewhere it compiles from source
+  and needs a Rust toolchain (<https://rustup.rs>). The demo does **not** need it.
+- Typical install time: ~5 min on a normal desktop (`uv sync`; longer if `pyref` must compile with `--extra legacy`).
 
 ## Run the demo
 
 ```bash
 uv sync
-uv run python demo/run_demo.py
+uv run python demo/run_demo.py   # needs only refloxide + refnx
 ```
 
 Expected output (~3 s) — recovers the simulated film (150 Å, 1.5 g/cm³, 4 Å roughness):
@@ -51,6 +53,9 @@ uv run python demo/run_demo.py my_data.csv   # columns: q [1/Å], R, R_err
 Edit `ENERGY_EV` and the layer stack in `demo/run_demo.py` for your sample.
 
 ## Reproducing the manuscript figures
+
+The manuscript notebooks use legacy `pyref`-based helpers: run `uv sync --extra legacy` first.
+New work should use `refloxide.model` / `refloxide.objective` directly (see `demo/run_demo.py`).
 
 The manuscript notebooks read measured data and fit results from `@data/` and `@models/`.
 **These are not distributed with the repository; they are available from the authors on request.**

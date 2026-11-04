@@ -3695,6 +3695,16 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1c/62/57277fcf0b509557d82b167844e48c72355623c535c40b6efc7f71405d49/refloxide-0.2.1-cp315-cp315t-manylinux_2_28_x86_64.whl", hash = "sha256:469812de68c680b55af63d87effff6127dd521bb8f2fa717319b82af200b38a8", size = 4125112, upload-time = "2026-10-10T04:40:27.97Z" },
 ]
 
+[package.optional-dependencies]
+plugin = [
+    { name = "arviz" },
+    { name = "periodictable" },
+    { name = "polars" },
+    { name = "pyarrow" },
+    { name = "refnx" },
+    { name = "scipy" },
+]
+
 [[package]]
 name = "refnx"
 version = "0.1.64"
@@ -4947,11 +4957,12 @@ dependencies = [
     { name = "openpyxl" },
     { name = "pandas" },
     { name = "plotly" },
+    { name = "polars" },
     { name = "pyarrow" },
     { name = "pyhyperscattering", extra = ["bluesky", "ui"] },
-    { name = "pyref" },
     { name = "pyrefly" },
-    { name = "refloxide" },
+    { name = "refloxide", extra = ["plugin"] },
+    { name = "refnx" },
     { name = "rich" },
     { name = "ridgeplot" },
     { name = "ruff" },
@@ -4966,6 +4977,11 @@ dependencies = [
     { name = "xarray" },
     { name = "zarr" },
     { name = "zstandard" },
+]
+
+[package.optional-dependencies]
+legacy = [
+    { name = "pyref" },
 ]
 
 [package.metadata]
@@ -5000,11 +5016,13 @@ requires-dist = [
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas" },
     { name = "plotly", specifier = ">=6.7.0" },
+    { name = "polars" },
     { name = "pyarrow", specifier = ">=23.0.0" },
     { name = "pyhyperscattering", extras = ["bluesky", "ui"], git = "https://github.com/usnistgov/PyHyperScattering.git" },
-    { name = "pyref", specifier = ">=0.8.2" },
+    { name = "pyref", marker = "extra == 'legacy'", specifier = ">=0.8.2" },
     { name = "pyrefly", specifier = ">=0.38.2" },
-    { name = "refloxide", specifier = "==0.2.1" },
+    { name = "refloxide", extras = ["plugin"], specifier = "==0.2.1" },
+    { name = "refnx", specifier = ">=0.1.64" },
     { name = "rich", specifier = ">=14.3.2" },
     { name = "ridgeplot", specifier = ">=0.5.0" },
     { name = "ruff" },
@@ -5020,6 +5038,7 @@ requires-dist = [
     { name = "zarr", specifier = ">=3.1.5" },
     { name = "zstandard", specifier = ">=0.25.0" },
 ]
+provides-extras = ["legacy"]
 
 [[package]]
 name = "xyzservices"

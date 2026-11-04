@@ -39,11 +39,12 @@ dependencies = [
     "openpyxl>=3.1.5",
     "pandas",
     "plotly>=6.7.0",
+    "polars",
     "pyarrow>=23.0.0",
     "pyhyperscattering[bluesky,ui]",
-    "pyref>=0.8.2",
     "pyrefly>=0.38.2",
-    "refloxide==0.2.1",
+    "refloxide[plugin]==0.2.1",
+    "refnx>=0.1.64",
     "rich>=14.3.2",
     "ridgeplot>=0.5.0",
     "ruff",
@@ -59,6 +60,11 @@ dependencies = [
     "zarr>=3.1.5",
     "zstandard>=0.25.0",
 ]
+
+[project.optional-dependencies]
+# pyref is legacy: needed only to unpickle the original fit files and for the
+# notebooks/utils built on pyref.fitting. refloxide is the intended interface.
+legacy = ["pyref>=0.8.2"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

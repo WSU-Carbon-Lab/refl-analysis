@@ -1,3 +1,21 @@
+"""Shared helpers for the ZnPc reflectivity analysis.
+
+Note: refloxide is the intended library for reflectivity modeling and fitting
+(``refloxide.model`` / ``refloxide.objective``; see ``demo/run_demo.py``). The
+helpers in this package that wrap ``pyref.fitting`` (``models``, ``graded_objective``,
+``slab_builders``, ``profile_slab``, ``io.read_fit`` for the original pickled fits)
+are legacy and need the optional ``pyref`` dependency: ``uv sync --extra legacy``.
+"""
+
+try:
+    import pyref  # noqa: F401
+except ImportError as err:  # pragma: no cover
+    raise ImportError(
+        "The `utils` package still wraps legacy `pyref.fitting` code. "
+        "Install it with `uv sync --extra legacy` (refloxide is the intended interface; "
+        "see demo/run_demo.py for a pyref-free example)."
+    ) from err
+
 from utils.graded_objective import (
     BookendedMultiEnergyPolish,
     graded_objective_at_energy,
