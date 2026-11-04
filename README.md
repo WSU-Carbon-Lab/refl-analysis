@@ -1,6 +1,6 @@
 # refl-analysis
 
-Analysis code for *"Beyond the diffraction limit to track molecular states at buried interfaces"*
+Analysis code for *"Sub-monolayer tracking of molecular states at buried interfaces"*
 (resonant X-ray reflectivity of ZnPc thin films; free-tensor vs. ML-DFT slab models).
 
 Repository: <https://github.com/WSU-Carbon-Lab/refl-analysis> · License: MIT (see `LICENSE`)
