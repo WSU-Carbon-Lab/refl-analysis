@@ -519,9 +519,20 @@ def _reflectmodel_q_grid(
     return x, x, x
 
 
-def _patch_reflect_model_fused(model_mod: Any, *, parallel: bool) -> None:
-    """Route book-ended stacks through the fused Rust evaluator when possible."""
+def _patch_reflect_model_fused(
+    model_mod: Any, *, parallel: bool, with_transmission: bool = True
+) -> None:
+    """Route book-ended stacks through the fused Rust evaluator when possible.
+
+    ``parallel`` and ``with_transmission`` are stored on the class and read
+    at call time, so re-running :func:`patch_pyref` updates them even after
+    the hook is installed.
+    """
     reflect_model = model_mod.ReflectModel
+    reflect_model.__refloxide_fused_options__ = {
+        "parallel": bool(parallel),
+        "with_transmission": bool(with_transmission),
+    }
     if getattr(reflect_model, "__refloxide_fused_patched__", False):
         return
     if not hasattr(reflect_model, "_model"):
@@ -549,12 +560,14 @@ def _patch_reflect_model_fused(model_mod: Any, *, parallel: bool) -> None:
                 getattr(self, "q_offset", type("Q", (), {"value": 0.0})()).value or 0.0
             )
             q_kernel = qvals + q_offset
+            options = type(self).__refloxide_fused_options__
             fused = evaluate_fused_bookended_reflectivity(
                 q_kernel,
                 self.structure,
                 model_energy,
                 structure_energy_offset=structure_offset,
-                parallel=parallel,
+                parallel=options["parallel"],
+                with_transmission=options["with_transmission"],
             )
             if fused is not None:
                 refl, tran = fused
@@ -710,6 +723,7 @@ def patch_pyref(
     parallel: bool = False,
     patch_reflectivity: bool = True,
     sld_classes: SldClassesMode = "both",
+    with_transmission: bool = True,
 ) -> PyrefPatchReport:
     """Install refloxide uniaxial kernels into an imported ``pyref.fitting`` stack.
 
@@ -730,6 +744,12 @@ def patch_pyref(
     patch_reflectivity
         When ``True`` (default), also patch
         ``pyref.fitting.model.reflectivity``.
+    with_transmission
+        When ``False``, book-ended stacks on the fused path skip transmission
+        (returned as ``nan``) and use refloxide's reflectance-only recursion,
+        which is faster and more accurate. ``ReflectModel.model`` discards
+        transmission, so fitting is unaffected; keep ``True`` for code that
+        reads ``tran`` from ``ReflectModel._model``.
     sld_classes
         Controls refloxide scatterer exposure on ``pyref.fitting.structure``:
 
@@ -784,7 +804,9 @@ def patch_pyref(
         )
         model_mod.reflectivity = patched_refl  # ty: ignore[invalid-assignment, unresolved-attribute]
     _patch_reflect_model_model(model_mod)
-    _patch_reflect_model_fused(model_mod, parallel=parallel)
+    _patch_reflect_model_fused(
+        model_mod, parallel=parallel, with_transmission=with_transmission
+    )
     _patch_reflect_model_eval_energy(model_mod)
     _patch_pyref_structure_ior()
     _patch_pyref_slab_materialization(st_mod)

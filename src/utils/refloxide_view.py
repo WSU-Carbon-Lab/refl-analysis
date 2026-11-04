@@ -117,7 +117,8 @@ def load_refloxide_fit(path: str | Path) -> Objective:
     Parameters
     ----------
     path : str or Path
-        Pickle file path.
+        Pickle file path. Accepts either a bare ``Objective`` or a dict bundle
+        with an ``\"objective\"`` key (as written by the FIG4 polish scripts).
 
     Returns
     -------
@@ -125,10 +126,13 @@ def load_refloxide_fit(path: str | Path) -> Objective:
         Plain ``pickle.load`` -- refloxide's ``Objective`` is genuinely
         picklable (see ``Objective.__setstate__``/``thread_workers``'s own
         round-trip use of it), no pyref/refnx-legacy dependency needed to
-        reload it.
+        reload it. Dict bundles are unwrapped to the ``objective`` entry.
     """
     with Path(path).open("rb") as f:
-        return pickle.load(f)
+        loaded = pickle.load(f)
+    if isinstance(loaded, dict) and "objective" in loaded:
+        return loaded["objective"]
+    return loaded
 
 
 def objective_view_at(

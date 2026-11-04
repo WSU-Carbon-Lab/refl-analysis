@@ -1,9 +1,10 @@
 Metadata-Version: 2.4
 Name: xrr-notebooks
 Version: 0.1.0
-Summary: Add your description here
+Summary: XRR/resonant reflectivity analysis code for ZnPc buried-interface study
 Requires-Python: >=3.12
 Description-Content-Type: text/markdown
+License-File: LICENSE
 Requires-Dist: arviz>=0.23.1
 Requires-Dist: awkward>=2.9.0
 Requires-Dist: blosc2>=4.0.0
@@ -13,6 +14,7 @@ Requires-Dist: dask>=2026.1.2
 Requires-Dist: dynesty>=3.0.0
 Requires-Dist: entrypoints>=0.4
 Requires-Dist: fastparquet>=2025.12.0
+Requires-Dist: gemmi>=0.7.5
 Requires-Dist: h5py>=3.15.1
 Requires-Dist: holoviews>=1.22.1
 Requires-Dist: huggingface-hub>=1.5.0
@@ -21,21 +23,23 @@ Requires-Dist: ipyaggrid>=0.5.4
 Requires-Dist: ipywidgets>=8.1.8
 Requires-Dist: joypy>=0.2.6
 Requires-Dist: jupyterlab>=4.5.2
+Requires-Dist: lammps>=2025.7.22.4.0
 Requires-Dist: lz4>=4.4.5
 Requires-Dist: matplotlib
+Requires-Dist: mpich>=5.0.2
 Requires-Dist: ndindex>=1.10.1
 Requires-Dist: notebook>=7.5.2
-Requires-Dist: notion-notebook
 Requires-Dist: numba>=0.63.1
 Requires-Dist: numpy
 Requires-Dist: ollama>=0.6.1
 Requires-Dist: openpyxl>=3.1.5
 Requires-Dist: pandas
+Requires-Dist: plotly>=6.7.0
 Requires-Dist: pyarrow>=23.0.0
 Requires-Dist: pyhyperscattering[bluesky,ui]
-Requires-Dist: pyref
+Requires-Dist: pyref>=0.8.2
 Requires-Dist: pyrefly>=0.38.2
-Requires-Dist: refloxide
+Requires-Dist: refloxide==0.2.1
 Requires-Dist: rich>=14.3.2
 Requires-Dist: ridgeplot>=0.5.0
 Requires-Dist: ruff
@@ -50,136 +54,76 @@ Requires-Dist: websockets>=16.0
 Requires-Dist: xarray>=2025.12.0
 Requires-Dist: zarr>=3.1.5
 Requires-Dist: zstandard>=0.25.0
+Dynamic: license-file
 
-# XRR Notebooks
+# refl-analysis
 
-Repository for X-ray Reflectivity (XRR) data analysis, fitting, and related research workflows.
+Analysis code for *"Beyond the diffraction limit to track molecular states at buried interfaces"*
+(resonant X-ray reflectivity of ZnPc thin films; free-tensor vs. ML-DFT slab models).
 
-## Structure
+Repository: <https://github.com/WSU-Carbon-Lab/refl-analysis> · License: MIT (see `LICENSE`)
 
-This repository follows a code-first structure with Hugging Face-backed artifact storage:
+## Contents
 
-- `**@data/**` - Local mirror root for Hugging Face datasets
-- `**@models/**` - Local mirror root for Hugging Face model repos
-- `**notebooks/**` - Jupyter notebooks organized by subproject
-- `**src/**` - Reusable Python code and utilities
-- `**scripts/**` - Standalone executable scripts
-- `**reports/**` - Generated outputs (figures, tables, PDFs)
-- `**configs/**` - Project configuration, including HF artifact mapping
-- `**references/**` - External reference materials
-- `**docs/**` - Documentation
+| Path | What |
+|---|---|
+| `demo/` | Small **synthetic** dataset + script that runs in seconds (start here) |
+| `src/utils/` | Shared code (I/O, fitting helpers, plotting) |
+| `notebooks/manuscript/` | Notebooks that generate each manuscript / SI figure |
+| `notebooks/fitting/`, `scripts/` | Fitting workflows |
 
-## Hugging Face Artifact Mapping
+Reflectivity physics (Parratt recursion, anisotropic tensor model, fitting) is described in the
+manuscript Methods and Supplementary Information; implementation is in the `pyref` and `refloxide` packages.
 
-The repository uses deterministic path-to-repo mapping for datasets and models.
+## Requirements
 
-### Data mapping
+- Python 3.12 · [uv](https://docs.astral.sh/uv/)
+- Key dependencies (exact versions in `uv.lock`): `pyref` 0.8.2, `refloxide` 0.2.1, numpy, scipy, pandas, polars, matplotlib
+- Tested on: macOS 26 (Apple M-series), Python 3.12. No non-standard hardware needed
+  (a GPU is optional and only used by some fitting scripts).
+- Typical install time: ~5 min on a normal desktop (`uv sync`).
 
-- Local: `@data/<experiment-type>/<material>`
-- Hub: `datasets/carbon-lab/<experiment-type>-<material>`
-
-Examples:
-
-- `@data/xrr/znpc` -> `datasets/carbon-lab/xrr-znpc`
-- `@data/xrr/photoresist` -> `datasets/carbon-lab/xrr-photoresist`
-
-### Model mapping
-
-- Local: `@models/<model-type>/<material>`
-- Hub: `models/carbon-lab/<model-type>-<material>`
-
-Examples:
-
-- `@models/xrr/znpc` -> `models/carbon-lab/xrr-znpc`
-- `@models/optical/znpc` -> `models/carbon-lab/optical-znpc`
-
-### Configuration
-
-Mappings are defined in:
-
-- `configs/hf-artifacts.toml`
-
-This config is the single source of truth for sync operations.
-
-### Sync tooling
-
-- Script: `scripts/hf_sync.py`
-- Make targets:
-  - `make hf-plan`
-  - `make hf-validate`
-  - `make hf-check-remote-all`
-  - `make hf-pull-all`
-  - `make hf-push-all`
-- Targeted sync:
-  - `make hf-check-remote-target TARGET=@data/xrr/znpc`
-  - `make hf-pull-target TARGET=@data/xrr/znpc`
-  - `make hf-push-target TARGET=@models/xrr/znpc`
-- Dry run:
-  - `make hf-pull-all DRY_RUN=--dry-run`
-  - `make hf-check-remote-all DRY_RUN=--dry-run`
-
-Run these before analysis and before publishing updated artifacts.
-
-## Subprojects
-
-- **data_collection**: Beamtime data collection and processing
-- **fitting**: X-ray reflectivity (XRR) fitting and analysis
-- **manuscript**: Manuscript preparation and figure generation
-- **optical_models**: Optical constants modeling and NEXAFS analysis
-- **dft**: Density functional theory (DFT) analysis
-- **giwaxs**: Grazing-incidence wide-angle X-ray scattering analysis
-- **photoresist**: Photoresist-related analysis
-- **training_data**: Training data generation for machine learning
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.12+
-- uv (package manager)
-
-### Installation
+## Run the demo
 
 ```bash
-# Install dependencies
 uv sync
-
-# Activate virtual environment
-source .venv/bin/activate
+uv run python demo/run_demo.py
 ```
 
-### Bootstrap
+Expected output (~3 s) — recovers the simulated film (150 Å, 1.5 g/cm³, 4 Å roughness):
 
-After cloning, run bootstrap to validate HF mappings and download configured artifacts:
+```
+thickness = 149.9 A, density = 1.49 g/cm3, roughness = 3.9 A, chi2/N = 0.73
+```
+
+`demo/make_demo_data.py` regenerates `demo/demo_xrr.csv`.
+
+## Run on your own data
 
 ```bash
-make bootstrap
+uv run python demo/run_demo.py my_data.csv   # columns: q [1/Å], R, R_err
 ```
 
-Dry run:
+Edit `ENERGY_EV` and the layer stack in `demo/run_demo.py` for your sample.
 
-```bash
-make bootstrap-dry-run
-```
+## Reproducing the manuscript figures
 
-### Directory Navigation
+The manuscript notebooks read measured data and fit results from `@data/` and `@models/`.
+**These are not distributed with the repository; they are available from the authors on request.**
+With the files placed under those folders (layout: `@data/xrr/znpc/`, `@models/xrr/znpc/`,
+`@models/optical/znpc/`), run the notebooks in `notebooks/manuscript/` (`FIG1`–`FIG4`, `SI*`, `APX*`).
 
-- **Notebooks**: Organized by subproject in `notebooks/[subproject]/`
-- **Data mirrors**: `@data/<experiment-type>/<material>`
-- **Model mirrors**: `@models/<model-type>/<material>`
-- **Figures**: All figures centralized in `reports/figures/[subproject]/`
-- **Code**: Reusable modules in `src/`, scripts in `scripts/`
+## Notebook index (`notebooks/manuscript/`)
 
-## Development
+| Notebook | Produces | Needs (on request) |
+|---|---|---|
+| `FIG1` | Fig. 1 optical tensor, DFT vs. experiment | `@models/optical/znpc/{dft,exp}.csv` |
+| `FIG2` | Fig. 2 free-tensor vs. DFT fits | XRR data, `dft/` and `free/` fit pickles, `dft.csv` |
+| `FIG3` | Fig. 3 orientation | same fits + refloxide refit |
+| `FIG4` | Fig. 4 and SI 12 graded profiles (MD strip) | fits, XRR data, MD profiles (`.npz`) |
+| `SI2` | SI 2 GIWAXS reduction | Xeuss GIWAXS `.edf`/CSV |
+| `SI9`, `SI10`, `SI11`, `SI13` | SI 9–11, 13 | fits / DFT tensors / unit cells |
+| `APX1`, `APX3`–`APX6` | Appendix figures | fits / scans |
 
-This repository uses:
-
-- **ruff** for linting and code formatting
-- **uv** for dependency management
-- **Python 3.12+** with type hints
-
-Code style follows PEP 8 with adaptations for scientific computing (e.g., uppercase variables for physical constants).
-
-## Project History
-
-This repository was reorganized in January 2026 from a flat structure to the current multi-project organization. All file moves preserved Git history using `git mv`.
+Fitting workflows that produce the fit files are in `notebooks/fitting/` and `scripts/`.
+Beamtime reduction (`notebooks/data_collection/`) expects raw beamline data at a local path set in the first cell.
