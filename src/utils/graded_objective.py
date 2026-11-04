@@ -13,10 +13,13 @@ Examples
 >>> from utils import read_ooc, read_xrr, read_fit
 >>> from utils.models import configure_refloxide_fitting
 >>> from utils.graded_objective import (
+...     load_bookended_multienergy_logY_polish,
 ...     upsample_graded_objective,
 ...     graded_objective_at_energy,
 ... )
 >>> configure_refloxide_fitting()
+>>> polish = load_bookended_multienergy_logY_polish()
+>>> graded_obj = polish.at(283.7)
 >>> oocs = read_ooc("dft.csv", material="znpc")
 >>> data = read_xrr("reflectivity_data", material="znpc", source="hub")
 >>> fit_bundle = read_fit("dft/dft_en_offset_new2.pkl", material="znpc", source="local")
@@ -35,12 +38,16 @@ Examples
 
 from __future__ import annotations
 
+import pickle
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
+import numpy as np
 from refloxide.pxr.energy.bookended import EnergyBookendedOrientationDensityProfile
 from refloxide.pxr.energy.fused import find_bookended_profile
 
+from utils.helpers.io import models_fitting_results
 from utils.models import AnisotropyObjective, ReflectModel, Transform
 from utils.refloxide_profile import model_bookended_refloxide
 from utils.slab_builders import safely_setp_param
@@ -84,6 +91,106 @@ class GradedFitContext:
     structure: Any
     film: EnergyBookendedOrientationDensityProfile
     energy: float
+
+
+DEFAULT_MULTIENERGY_LOGY_POLISH = (
+    models_fitting_results / "bookended_multienergy_logY_polish" / "fit.pkl"
+)
+
+
+@dataclass(frozen=True, slots=True)
+class BookendedMultiEnergyPolish:
+    """Loaded multi-energy book-ended polish bundle for manuscript figures.
+
+    Parameters
+    ----------
+    objectives
+        Per-energy pyref ``AnisotropyObjective`` map (shared film geometry).
+    summary
+        JSON summary written by the polish script (film, oxide, instruments, RMS).
+    path
+        Pickle path that was loaded.
+    """
+
+    objectives: dict[float, AnisotropyObjective]
+    summary: dict[str, Any]
+    path: Path
+
+    def at(self, energy: float) -> AnisotropyObjective:
+        """Return the objective at ``energy`` (eV), or the nearest available energy.
+
+        Parameters
+        ----------
+        energy
+            Photon energy in eV.
+
+        Returns
+        -------
+        AnisotropyObjective
+            Single-energy objective whose film geometry matches the joint polish.
+        """
+        key = float(energy)
+        if key in self.objectives:
+            return self.objectives[key]
+        energies = np.asarray(sorted(self.objectives), dtype=float)
+        nearest = float(energies[int(np.argmin(np.abs(energies - key)))])
+        return self.objectives[nearest]
+
+    @property
+    def film(self) -> EnergyBookendedOrientationDensityProfile:
+        """Shared book-ended film from the anchor-energy objective."""
+        return extract_graded_fit_context(self.at(283.7)).film
+
+
+def load_bookended_multienergy_logY_polish(  # noqa: N802
+    path: Path | str | None = None,
+) -> BookendedMultiEnergyPolish:
+    """Load the multi-energy ``logY`` polish for graded / FIG4 manuscript use.
+
+    Reads the bundle written by
+    ``notebooks/fitting/_bookended_multienergy_logY_polish.py`` (locked oxide
+    thick/rough and ``density_vac`` at the 283.7 MLE; free ``tau_vac`` /
+    ``alpha_vac`` / ``surface_roughness`` and per-energy scales/thetas under
+    ``Transform("logY")``).
+
+    Parameters
+    ----------
+    path
+        Pickle path. Defaults to
+        ``@models/fitting_results/bookended_multienergy_logY_polish/fit.pkl``.
+
+    Returns
+    -------
+    BookendedMultiEnergyPolish
+        ``.at(energy)`` yields a pyref ``AnisotropyObjective`` drop-in for
+        ``fig_5_graded.ipynb`` / ``extract_graded_fit_context``.
+
+    Raises
+    ------
+    FileNotFoundError
+        When ``path`` is missing.
+    KeyError
+        When the pickle lacks ``obj_map`` / ``summary``.
+    """
+    fit_path = Path(path) if path is not None else DEFAULT_MULTIENERGY_LOGY_POLISH
+    if not fit_path.exists():
+        raise FileNotFoundError(
+            f"missing {fit_path} -- run "
+            "notebooks/fitting/_bookended_multienergy_logY_polish.py first"
+        )
+    with fit_path.open("rb") as fh:
+        bundle = pickle.load(fh)
+    if "obj_map" not in bundle or "summary" not in bundle:
+        raise KeyError(
+            f"{fit_path} is not a multi-energy polish bundle "
+            "(expected keys 'obj_map' and 'summary')"
+        )
+    objectives = {float(e): obj for e, obj in bundle["obj_map"].items()}
+    return BookendedMultiEnergyPolish(
+        objectives=objectives,
+        summary=dict(bundle["summary"]),
+        path=fit_path.resolve(),
+    )
 
 
 def resolve_data_key(data: dict[str, Any], energy: float) -> str:
@@ -637,7 +744,9 @@ def graded_objectives_for_energies(  # noqa: PLR0913
 
 __all__ = [
     "BOOKENDED_FILM_PARAM_NAMES",
+    "DEFAULT_MULTIENERGY_LOGY_POLISH",
     "REFLECT_MODEL_INSTRUMENTATION",
+    "BookendedMultiEnergyPolish",
     "GradedFitContext",
     "bookended_film_from_structure",
     "clone_bookended_film",
@@ -648,6 +757,7 @@ __all__ = [
     "graded_objectives_for_energies",
     "graded_structure_at_energy",
     "link_bookended_film_to_reference",
+    "load_bookended_multienergy_logY_polish",
     "reflect_model_for_structure",
     "resolve_data_key",
     "structure_with_upsampled_film",

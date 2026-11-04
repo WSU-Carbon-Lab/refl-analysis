@@ -1,5 +1,7 @@
 from utils.graded_objective import (
+    BookendedMultiEnergyPolish,
     graded_objective_at_energy,
+    load_bookended_multienergy_logY_polish,
     upsample_graded_objective,
 )
 from utils.helpers.io import (
@@ -68,7 +70,9 @@ __all__ = [
     "build_dft_diagnostic_pyref_mcmc_objective",
     "compare_kernel_paths",
     "convert_dft_fit_bundle",
+    "BookendedMultiEnergyPolish",
     "graded_objective_at_energy",
+    "load_bookended_multienergy_logY_polish",
     "objective_retarget_energy",
     "objectives_retarget_energies",
     "upsample_graded_objective",

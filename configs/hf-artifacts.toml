@@ -10,10 +10,10 @@ repo_type = "dataset"
 revision = "main"
 
 [[data]]
-experiment_type = "xrr"
-material = "photoresist"
-local_path = "@data/xrr/photoresist"
-repo_id = "carbon-lab/xrr-photoresist"
+experiment_type = "md"
+material = "znpc"
+local_path = "@data/md/znpc"
+repo_id = "carbon-lab/md-znpc"
 repo_type = "dataset"
 revision = "main"
 
